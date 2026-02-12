@@ -1,0 +1,25 @@
+After going through your proposal, this part isn't exactly clear to me:
+"...develop an interactive simulation and visualization tool that helps users build
+intuition for regression and time series models by exploring how they behave under correct and incorrect modelling
+assumptions..."
+
+Based on the proposal, it appears to me that your project is mostly about
+1. simulating the model
+2. showcasing visuals, i.e., residual time plot.
+
+It's unclear where the "exploring how they behave under correct and incorrect modelling assumptions" is supposed to be implemented, and the model fitting section (3 project details), it just sounds like you will make functions to code up the time series models (instead of built in functions), but I don't see anything about how one would check or test for incorrect and mis specified modelling.
+
+"Data Generation: All stochastic components will be generated using Gaussian white noise (i.i.d. Normal errors
+with mean zero and constant variance) through the acceptance-rejection algorithm."
+
+I don't think the acceptance-rejection algorithm is needed here. I would honestly just use a built in function for this. (If you are just generating samples from Gaussian white noise, rnorm() is just easier...)
+
+I would exclude the visualization toggle "autocorrelation function of the residuals", since another group is doing a time series project and theirs is mostly about computing autocorrelation, and I don't want overlap between groups. 
+
+0.85/1
+(marks deducted due to lack of clarity)
+
+I am planning to apply bonus marks after the "Basic Implementation Check" checkpoint, because some students might be switching groups/topics/opting out. I have set a reminder to do this.
+
+
+
