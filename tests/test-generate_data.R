@@ -58,6 +58,6 @@ test_that("save true makes csv", {
   out <- generate_data(1, c(1, 2), 6, 0.1, TRUE)
 
   # check output file
-  expect_null(out)
+  expect_equal(out, 0)
   expect_true(file.exists("output.csv"))
 })
