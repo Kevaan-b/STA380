@@ -47,16 +47,14 @@ generate_data <- function(num_x, b_vector, values, sd, save){
         dir <- getwd()
         path <- file.path(dir, "output.csv")
 
-        # Put values in output.txt
+        # Put values in output.csv
         write.csv(result, path, row.names=FALSE)
     }
 
     # Save as a dataframe
     else {
-        print(as.data.frame(result))
         return(as.data.frame(result))
     }
 
 }
 
-generate_data(1, c(3, -2), 50, 0.1, save = TRUE)
