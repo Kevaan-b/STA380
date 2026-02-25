@@ -2,14 +2,7 @@
 # for every <num_x> independent variables. It returns a csv file containing 
 # generated x values, y_values, and errors
 
-generate_data <- function(num_x, b_vector, values, sd){    
-    #Get the directory the function is running in and paste the
-    #output file in the same directory
-    dir <- getwd()
-    path <- file.path(dir, "output.csv")
-    print(path)
-
-
+generate_data <- function(num_x, b_vector, values, sd, save){    
     # To calculate y=XB + e, we need X and e. Generate random noise
     X <- matrix(nrow=values, ncol=0)
     e <- rnorm(values, 0, sd)
@@ -28,7 +21,6 @@ generate_data <- function(num_x, b_vector, values, sd){
             generated_x <- runif(values, 0, 1)
             X <- cbind(X, generated_x) 
             colnames(X)[i] <- paste0("x", i-1)
-
         }
     }
 
@@ -42,15 +34,29 @@ generate_data <- function(num_x, b_vector, values, sd){
     y_values <- (X %*% b_vector) + e
 
     # Bind error values and y values
-    result = cbind(X,y_values)
-    result = cbind(result, e)
+    result <- cbind(X,y_values)
+    result <- cbind(result, e)
     colnames(result)[num_x + 2] <- "y"
     colnames(result)[num_x + 3] <- "noise"
+    result <- result[, -1]
 
-    # Put values in output.txt
-    write.csv(result, path, row.names=FALSE)
+    # Save as a csv file
+    if (save){
+        #Get the directory the function is running in and paste the
+        #output file in the same directory
+        dir <- getwd()
+        path <- file.path(dir, "output.csv")
+
+        # Put values in output.txt
+        write.csv(result, path, row.names=FALSE)
+    }
+
+    # Save as a dataframe
+    else {
+        print(as.data.frame(result))
+        return(as.data.frame(result))
+    }
 
 }
 
-
-generate_data(1, c(1,2), 50, 0.1)
+generate_data(1, c(3, -2), 50, 0.1, save = TRUE)
