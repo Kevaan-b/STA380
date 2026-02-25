@@ -1,7 +1,21 @@
-# Generate synthetic data (from uniform distribution between 0 and 1)
-# for every <num_x> independent variables. It returns a csv file containing 
-# generated x values, y_values, and errors
-
+#' Generate synthetic data
+#' @description
+#' 'generate_data' returns generated independent x values, y values, and noise
+#' in a csv file or dataframe format.
+#' 
+#' @param num_x: The number of x values in the equation
+#' @param b_vector: A vector containing slope elements
+#' @param values: The number of y values to generate
+#' @param sd: The standard deviation errors follow
+#' @param save: A boolean. If TRUE, save the data in a csv, else, save as 
+#' a dataframe
+#' 
+#' @return This function returns -1 in case vector/matrix multiplication fails.
+#' If save is TRUE, it returns 0 and saves the result in a CSV file. If save 
+#' is FALSE, it returns a dataframe containing all generated information
+#' 
+#' @example generate_data(1, c(3,-2), 50, 0.1, save = TRUE)
+#' 
 generate_data <- function(num_x, b_vector, values, sd, save){    
     # To calculate y=XB + e, we need X and e. Generate random noise
     X <- matrix(nrow=values, ncol=0)
@@ -26,7 +40,6 @@ generate_data <- function(num_x, b_vector, values, sd, save){
 
     # generate dependent y data points and add to list
     if (ncol(X) != length(b_vector) || nrow(X) != length(e)) {
-        print(-1)
         return(-1)
     }
 
@@ -49,10 +62,8 @@ generate_data <- function(num_x, b_vector, values, sd, save){
 
         # Put values in output.csv
         write.csv(result, path, row.names=FALSE)
-    }
-
-    # Save as a dataframe
-    else {
+        return(0)
+    } else {
         return(as.data.frame(result))
     }
 
