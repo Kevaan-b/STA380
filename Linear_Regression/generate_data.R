@@ -1,41 +1,56 @@
 # Generate synthetic data (from uniform distribution between 0 and 1)
-# for every independent variable
-# present in <x_vector>. It returns
+# for every <num_x> independent variables. It returns a csv file containing 
+# generated x values, y_values, and errors
 
-generate_data <- function(x_vector, b_vector, values, sd, output_dir){
-  # Store generated x values here # nolint
-  x_values <- list()
+generate_data <- function(num_x, b_vector, values, sd){    
+    #Get the directory the function is running in and paste the
+    #output file in the same directory
+    dir <- getwd()
+    path <- file.path(dir, "output.csv")
+    print(path)
 
-  # Need a X matrix. First column is 1's # nolint: indentation_linter.
-  X <- matrix(rep(1, values), ncol = 1) # nolint
 
-  # Need a noise column # nolint: indentation_linter.
-  e <- rnorm(values, 0, sd)
+    # To calculate y=XB + e, we need X and e. Generate random noise
+    X <- matrix(nrow=values, ncol=0)
+    e <- rnorm(values, 0, sd)
 
-   # iterate through all independent x variables # nolint: indentation_linter.
-  for (x in x_vector){
+    # iterate through all independent x variables 
+    for (i in 1:(num_x+1)){
 
-    # generate independent x data points and add to list
-    generated_x <- runif(values, 0, 1)
-    x_values <- append(x_values, list(generated_x))
+        # Add a column of 1's
+        if (i == 1){
+            ones <- rep(1,values)
+            X <- cbind(X, ones)
+            colnames(X)[i] <- "Ones"
+        }
+        # generate independent x data points and add to matrix
+        else {
+            generated_x <- runif(values, 0, 1)
+            X <- cbind(X, generated_x) 
+            colnames(X)[i] <- paste0("x", i-1)
 
-    # Add the generated data as a column to the matrix
-    X <- cbind(X, generated_x) # nolint
-  }
+        }
+    }
 
-  # generate dependent y data points and add to list
-  if (ncol(X) != length(b_vector) || nrow(X) != length(e)) {
-    return(-1)
-  }
+    # generate dependent y data points and add to list
+    if (ncol(X) != length(b_vector) || nrow(X) != length(e)) {
+        print(-1)
+        return(-1)
+    }
 
-  # Generated y values
-  y_values <- (X %*% b_vector) + e
+    # Generated y values
+    y_values <- (X %*% b_vector) + e
 
-  # Put values in a textfile
-  df <- data.frame(do.call(cbind, x_values), y = y_values)
-  write.table(df, file = output_dir, sep = ",", row.names = FALSE)
+    # Bind error values and y values
+    result = cbind(X,y_values)
+    result = cbind(result, e)
+    colnames(result)[num_x + 2] <- "y"
+    colnames(result)[num_x + 3] <- "noise"
+
+    # Put values in output.txt
+    write.csv(result, path, row.names=FALSE)
 
 }
 
 
-generate_data(c(1), c(2, 1), 20, 10, "/Users/nazhussain/Desktop/STA380/STA380/Linear_Regression/output.txt")
+generate_data(1, c(1,2), 50, 0.1)
