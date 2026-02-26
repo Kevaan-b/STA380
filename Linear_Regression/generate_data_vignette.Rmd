@@ -67,3 +67,13 @@ df_multi <- generate_data(num_x = 2, b_vector = c(1, 2, -1), values = 100, sd = 
 head(df_multi)
 ```
 
+### AI statement
+I did not use generative AI to generate any code. I only used generative AI to learn new R functions and applied them through my understanding
+
+### Citations
+sanchez, A. nosedal. (n.d.). sta302-classical-SLR-assumptions. Lecture. Mississauga: University of Toronto.
+
+sanchez, A. nosedal. (n.d.). sta302-estimation-and-GM-thm. Lecture. Mississauga: University of Toronto.
+
+sanchez, A. nosedal. (n.d.). sta302-slr-in-matrix-terms. Lecture. Mississauga: University of Toronto.
+

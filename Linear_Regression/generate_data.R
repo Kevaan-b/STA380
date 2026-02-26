@@ -68,4 +68,6 @@ generate_data <- function(num_x, b_vector, values, sd, save){
     }
 
 }
+generate_data(num_x = 1, b_vector = c(3, -2), values = 50, sd = 0.1, save = TRUE)
+
 
