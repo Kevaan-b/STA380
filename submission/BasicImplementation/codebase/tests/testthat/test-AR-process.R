@@ -1,5 +1,5 @@
 library(testthat)
-source(testthat::test_path("../../R/AR-process.R"))
+source(testthat::test_path("..", "..", "AR-process.R"))
 #########################################
 # return type and length test           #
 #########################################
