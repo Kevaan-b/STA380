@@ -1,7 +1,7 @@
 library(testthat)
 
 # load moving_average functions from this test folder
-source(testthat::test_path("..", "codebase", "MA", "moving_average.R"))
+source(testthat::test_path("..", "..", "MA", "moving_average.R"))
 
 
 

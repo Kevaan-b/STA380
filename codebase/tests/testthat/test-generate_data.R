@@ -1,7 +1,7 @@
 library(testthat)
 
 # load generate_data from this test folder
-source(testthat::test_path("..", "codebase", "LR", "generate_data.R"))
+source(testthat::test_path("..", "..", "LR", "generate_data.R"))
 
 
 
