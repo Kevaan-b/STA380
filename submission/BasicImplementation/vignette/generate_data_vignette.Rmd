@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r source, include=FALSE}
-source("generate_data.R")
+source("../codebase/LR/generate_data.R")
 ```
 
 This vignette describes how to use the generate_data function to create synthetic data.
@@ -66,4 +66,14 @@ You can generate data with multiple independent variables by increasing `num_x` 
 df_multi <- generate_data(num_x = 2, b_vector = c(1, 2, -1), values = 100, sd = 0.5, save = FALSE)
 head(df_multi)
 ```
+
+### AI statement
+I did not use generative AI to generate any code. I only used generative AI to learn new R functions and applied them through my understanding
+
+### Citations
+sanchez, A. nosedal. (n.d.). sta302-classical-SLR-assumptions. Lecture. Mississauga: University of Toronto.
+
+sanchez, A. nosedal. (n.d.). sta302-estimation-and-GM-thm. Lecture. Mississauga: University of Toronto.
+
+sanchez, A. nosedal. (n.d.). sta302-slr-in-matrix-terms. Lecture. Mississauga: University of Toronto.
 
