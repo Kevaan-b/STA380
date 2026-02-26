@@ -13,11 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 source("../codebase/LR/generate_data.R")
 ```
 
-This vignette describes how to use the generate_data function to create synthetic data.
+This vignette describes how to use the `generate_data` function to create synthetic data.
 
 ## Generating data around a user defined LR equation
 
-The function `generate_data()` adds random noise to y values and generates (x,y) pairs that follows a user-defined relation. It generates random independent `x` variables, computes dependent `y` values using the equation **y = XB + e**, and includes the noise term `e`. 
+The function `generate_data()` adds random noise to y values and generates (x,y) pairs that follows a user-defined relation. It generates random independent `x` variables, computes dependent $y$ values using the equation $Y = XB + \epsilon$, and includes the noise term $\epsilon$. 
 
 If `save` is TRUE, the function saves the data inside a csv file, else, it returns a dataframe containing an arbitrary amount of x values, y values, and the noise applied to the relation.
 
@@ -30,7 +30,7 @@ If `save` is TRUE, the function saves the data inside a csv file, else, it retur
 - `save`: Boolean. If `TRUE`, saves output as a CSV file; if `FALSE`, returns a dataframe.
 ```
 ## Return Value
-On success, the function either returns 0 if `save` is TRUE or a dataframe if `save` is FALSE. Note that the name of the csv file is `output.csv.`In the case where the length of `b_vector` does not equal to `num_x + 1`, the function returns -1 on failure.
+On success, the function either returns 0 if `save` is TRUE or a dataframe if `save` is FALSE. Note that the name of the csv file is `output.csv.`In the case where the length of `b_vector` does not equal to `num_x + 1`, the function returns `-1` on failure.
 
 
 ## Examples

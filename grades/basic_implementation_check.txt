@@ -1,0 +1,70 @@
+for the generate_data_vignette:
+
+I edited some of the text to support LaTex (ideally, you should use \epsilon instead of e.)
+
+There is some other LaTeX you should ideally add (particularly, look at the "Examples" section.)
+
+The function parameters are formatted a bit weirdly:
+
+## Function Parameters
+```markdown
+- `num_x`: Number of x variables in the equation. For example, y = 2x + 1 has 1 x value.
+- `b_vector`: Vector of coefficients including the intercept. For example, the b vector for y = 2x + 1 is `c(1, 2)`.
+- `values`: Number of observations (y values) to generate.
+- `sd`: Standard deviation of the error term.
+- `save`: Boolean. If `TRUE`, saves output as a CSV file; if `FALSE`, returns a dataframe.
+
+shouldn't you just do a regular text point form...? Why keep it within a code-looking environment?
+
+The citations are supposed to be in a .bib format, as indicated in the instructions. (This is something you guys did for the proposal!)
+^this criticism should also apply for the AR Process Vignette as well.
+
+(-0.2 for not having bibtex references)
+
+
+for moving_average.R:
+
+typically, a user wouldn't specify the number of burnin samples so I would provide a default.
+
+for generate_data.R
+
+I'm unsure if this is a good parameter name:
+#' @param values: The number of y values to generate
+
+I'm not too sure if it's wise to return -1 in case vector/matrix multiplication fails.
+
+This is because if you are returning a number, and you had let's say generate_data be a function you call regularly, there
+will likely be attempts of them trying to work with -1 (R won't stop). And you may get weird bugs down the line.
+
+I would rather you throw an error (see stop() in base R, i.e., help(stop)).
+
+
+
+
+regarding running tests:
+
+lines similar to this do not work on my system:
+
+# load moving_average functions from this test folder
+source(testthat::test_path("..", "..", "MA", "moving_average.R"))
+
+in particular, you should generally include code that works easily for other people on the same project.
+It's just not that clear which working directory I should be in, nd you have many different folders.
+
+that being said, after diagnosing it, it appears I should be located at:
+"..\\4kasters\\submission\\codebase"
+
+which is not exactly made explicit. 
+
+(-0.2 since testing code only conditionally works in an unspecified folder)
+
+
+grade: 1.6/2
+
+Bonus marks, if any, will be applied on Quercus but not necessarily reflected on feedback.
+
+
+
+
+
+

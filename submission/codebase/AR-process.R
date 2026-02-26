@@ -20,7 +20,8 @@
 #' dgp <- generate_ar_dgp(m = 2, variance = 2, n = 50, seed = 1, phi = c(0.5, 0.3))
 #' @importFrom stats rnorm filter
 #' @export
-generate_ar_dgp <- function(m = 2, variance = 2, ar_mean = 0, n = 50, seed = 1, phi = NULL) {
+generate_ar_dgp <- function(m = 2, variance = 2, ar_mean = 0, n = 50, 
+                            seed = 1, phi = NULL) {
   if (!is.null(phi)) {
     if (length(phi) != m) {
       stop(paste("phi has length", length(phi), "but m =", m,
