@@ -7,22 +7,22 @@
 #' @param p Numeric vector of AR coefficients.
 #' @param q Numeric vector of MA coefficients.
 #' @param sigma Numeric standard deviation of the white-noise innovations.
-#' @param burnin Integer number of initial simulated points to discard.
 #' @param seed Optional integer random seed for reproducibility.
 #'
 #' @return Data frame with columns `t`, `e`, `p_order`, `q_order`, and
 #' `arma_label`.
 #'
 #' @examples
-#' e <- generate_ARMA_errors(n = 20, p = c(0.45), q = c(0.3, -0.1), sigma = 1, burnin = 50)
+#' e <- generate_ARMA_errors(n = 20, p = c(0.45), q = c(0.3, -0.1), sigma = 1)
 #'
 #' @importFrom stats rnorm
 #' @export
-generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, burnin = 100, seed = NULL) {
+generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, seed = NULL) {
   if (!is.null(seed)) {
     set.seed(seed)
   }
 
+  burnin <- 50
   total_n <- n + burnin
   p_order <- length(p)
   q_order <- length(q)
@@ -68,7 +68,6 @@ generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, b
 #' @param p Numeric vector of AR coefficients.
 #' @param q Numeric vector of MA coefficients.
 #' @param sigma Numeric standard deviation of the white-noise innovations.
-#' @param burnin Integer number of initial simulated points to discard.
 #' @param b Numeric vector of length 2 where `b[1] = b1` and `b[2] = b0`.
 #' @param seed Optional integer random seed for reproducibility.
 #'
@@ -76,18 +75,18 @@ generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, b
 #' and `arma_label`.
 #'
 #' @examples
-#' d <- generate_ARMA_dataset(n = 300, p = c(0.4), q = c(0.25, -0.1), sigma = 1.5, burnin = 120, b = c(0.04, 2))
+#' d <- generate_ARMA_dataset(n = 300, p = c(0.4), q = c(0.25, -0.1), sigma = 1.5, b = c(0.04, 2))
 #'
 #' @export
-generate_ARMA_dataset <- function(n, p = numeric(0), q = numeric(0), sigma = 1, burnin = 100, b = c(0, 0), seed = NULL) {
+generate_ARMA_dataset <- function(n, p = numeric(0), q = numeric(0), sigma = 1, b = c(0, 0), seed = NULL) {
   errors_df <- generate_ARMA_errors(
     n = n,
     p = p,
     q = q,
     sigma = sigma,
-    burnin = burnin,
     seed = seed
   )
+
   t <- errors_df$t
   e_t <- errors_df$e
   b1 <- b[1]
@@ -107,7 +106,7 @@ generate_ARMA_dataset <- function(n, p = numeric(0), q = numeric(0), sigma = 1, 
 
 #' Fit an ARMA Model to Data
 #'
-#' @description Fits an ARMA model of order `p` and `q_order`. If
+#' @description Fits an ARMA model of order `p_order` and `q_order`. If
 #' `data` is a data frame with a `t` column, `t` is included as an external regressor.
 #'
 #' @param data Data frame containing at least `y` (and optionally `t`), or a
@@ -127,13 +126,10 @@ fit_ARMA <- function(data, p_order = 0, q_order = 0) {
 
   if (is.data.frame(data) && "t" %in% names(data)) {
     fit <- arima(y, order = c(p_order, 0, q_order), xreg = data$t)
-  } 
-  
-  else {
+  } else {
     fit <- arima(y, order = c(p_order, 0, q_order))
   }
 
-  # Keep lightweight model info for plotting labels.
   fit$fit_label <- paste0("ARMA(", p_order, ", ", q_order, ") fit")
   fit$p_order <- p_order
   fit$q_order <- q_order
@@ -215,4 +211,3 @@ plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = 
     legend("topleft", legend = legend_labels, col = c("black", fit_col), pch = c(16, NA), lty = c(NA, 1), bty = "n")
   }
 }
-

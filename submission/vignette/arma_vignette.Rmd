@@ -14,7 +14,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-knitr::opts_chunk$set(fig.width = 7, fig.height = 9)
+knitr::opts_chunk$set(fig.width = 7.2, fig.height = 12)
 ```
 
 Before we start, we setup the variables needed for the demonstration.
@@ -25,7 +25,6 @@ source("../codebase/ARMA/arma.R")
 set.seed(42)
 n <- 20
 sigma <- 1.5
-burnin <- 50
 b <- c(0.2, 2) # b1, b0
 
 # Data-generating process (DGP): ARMA(2,2)
@@ -48,8 +47,7 @@ e_arma22 <- generate_ARMA_errors(
   n = n,
   p = p_arma22,
   q = q_arma22,
-  sigma = sigma,
-  burnin = burnin
+  sigma = sigma
 )
 
 d_arma22 <- generate_ARMA_dataset(
@@ -57,7 +55,6 @@ d_arma22 <- generate_ARMA_dataset(
   p = p_arma22,
   q = q_arma22,
   sigma = sigma,
-  burnin = burnin,
   b = b
 )
 ```
