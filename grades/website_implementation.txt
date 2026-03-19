@@ -1,0 +1,23 @@
+
+Few concerns (and it seems like this was somewhat rushed last night, so you may already be aware of these problems):
+Your website currently supports only 1 AR1 coefficient and 5 MA coefficients.
+
+In general, to make your website more flexible to add more coefficients, it would be convenient if you actually allowed the user to insert multiple responses separated by a comma.
+
+An example is the following (old project I did in undergrad):
+https://annaly.shinyapps.io/ImportanceSamplingMultivariateNormal/
+See the page: multivariate normal regression (qualitative factors only)
+One of the inputs is: 
+Insert nj1,...,njm​, the sample size. The order is shown below after inputting li.
+
+(I would show the code but it's honestly embarassing... I'm a much better coder now, and honestly, I don't mind students ellicitating LLMs for this if they're honest about usage.)
+
+The model equations section does seem to leak outside of the actual page itself if the user inputs are not suppressed.
+
+It honestly may be better to just have a separate tab than to try to put everything in one page.
+
+You likely should specify what \phi_{i} and \theta_{i} is on the page. It is clear to me, because I took the course which followed the same textbook, but the conventions are not necessarily universal. (They MIGHT be, but from my experiences working with other types of models... The conventions differ sometimes, and it's good to distinguish the coefficients of the MA/AR).
+
+I know you have commented that you'd like to add more features and I am excited to see what else you will put in!
+
+1/1
