@@ -6,38 +6,39 @@ ui <- page_sidebar(
   
   theme = bs_theme(version = 5,
                    bootswatch = "flatly",
-                   "navbar-bg" = "#2C3E50"),
+                   primary = "#2C3E50"),
 
-  title = "This is a title",
+  title = "Time Series Model Behaviour Explorer",
 
   
   sidebar = sidebar(
   
+    h4("Model Inputs"),
     
     textInput(inputId = "p_val",
-                 label = "p_value",
+                 label = "AR coefficients (p)",
                  value = "0.4"),
     
     textInput(inputId = "q_val",
-                 label = "q_value",
-                 value = "0.25,-0.1"),
+                 label = "MA coefficients (q)",
+                 value = "0.25, -0.1"),
     
     numericInput(inputId = "n_val",
-                 label = "n_value",
+                 label = "Sample size",
                  value = 300),
     
     numericInput(inputId = "sigma",
-                 label = "standard deviation of the white-noise innovations",
+                 label = "Innovation standard deviation",
                  value = 1.5),
     
     textInput(inputId = "b_val",
-              label = "b_value",
+              label = "Trend coefficients (b1, b0)",
               value = "0.04, 2"),
     
     
     sliderInput(
       inputId = "seed",
-      label = "seed",
+      label = "Random seed",
       min = 0,
       max = 1000,
       value = 0
@@ -55,6 +56,7 @@ ui <- page_sidebar(
       checkboxInput("show_fit", "Show fit", value = TRUE)
     ),
     
+    helpText("Tip: choose y to view the generated data, or e to inspect the ARMA error process."),
     
   ),
   
@@ -62,14 +64,7 @@ ui <- page_sidebar(
 )
 
 to_numeric <- function(x) {
-  temp <- x[[1]]
-  result <- numeric(length(temp))
-  
-  for (k in 1:length(temp)) {
-    result[k] <- as.numeric(temp[k])
-  }
-  
-  return(result)
+  return(as.numeric(trimws(x[[1]])))
 }
 
 server <- function(input, output, session) {

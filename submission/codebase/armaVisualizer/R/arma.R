@@ -138,6 +138,25 @@ fit_ARMA <- function(data, p_order = 0, q_order = 0) {
   fit
 }
 
+estimate_ARMA_errors <- function(data, fit) {
+  intercept <- 0
+  trend_coef <- 0
+
+  if ("intercept" %in% names(fit$coef)) {
+    intercept <- fit$coef["intercept"]
+  }
+
+  if ("data$t" %in% names(fit$coef)) {
+    trend_coef <- fit$coef["data$t"]
+  }
+
+  if ("xreg" %in% names(fit$coef)) {
+    trend_coef <- fit$coef["xreg"]
+  }
+
+  return(as.numeric(data$y - (intercept + trend_coef * data$t)))
+}
+
 #' Plot ARMA series over time
 #'
 #' @description Plots ARMA data or errors from either a generated ARMA data
@@ -179,7 +198,11 @@ plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = 
 
   if (!is.null(fit) && is.null(fitted_vals)) {
     if (series == "e") {
-      fitted_vals <- as.numeric(residuals(fit))
+      if (is.data.frame(x) && all(c("y", "t") %in% names(x))) {
+        fitted_vals <- estimate_ARMA_errors(x, fit)
+      } else {
+        fitted_vals <- as.numeric(residuals(fit))
+      }
     } else {
       fitted_vals <- as.numeric(y_obs - residuals(fit))
     }
