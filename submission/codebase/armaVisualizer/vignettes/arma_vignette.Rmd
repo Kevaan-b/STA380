@@ -1,3 +1,5 @@
+**Generative AI Statement:** Used generative AI to help with parts of the website design, wording, and some code cleanup while building the Shiny app.
+
 ---
 title: "ARMA vignette"
 output: rmarkdown::html_vignette
