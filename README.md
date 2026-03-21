@@ -2,17 +2,13 @@
 
 ## what is included now
 
-- proposal files in `submission/STA380_Proposol/`
-- basic implementation code in `submission/BasicImplementation/codebase/`
-- test files in `submission/BasicImplementation/codebase/tests/testthat/`
-- vignette source and html files in `submission/BasicImplementation/vignette/`
+- R package is located at submission/codebase/armaVisualizer
 
 ## run tests
 
-in r
+in armaVisualizer
 
 ```r
-install.packages("testthat")
-testthat::test_dir("submission/BasicImplementation/codebase/tests/testthat")
+devtools::test()
 ```
 

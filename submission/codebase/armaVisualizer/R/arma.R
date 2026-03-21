@@ -16,6 +16,7 @@
 #' e <- generate_ARMA_errors(n = 20, p = c(0.45), q = c(0.3, -0.1), sigma = 1)
 #'
 #' @importFrom stats rnorm
+#' @importFrom utils tail
 #' @export
 generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, seed = NULL) {
   if (!is.null(seed)) {
@@ -117,6 +118,7 @@ generate_ARMA_dataset <- function(n, p = numeric(0), q = numeric(0), sigma = 1, 
 #' @return An object of class Arima.
 #'
 #' @examples
+#' d <- generate_ARMA_dataset(n = 300, p = c(0.4), q = c(0.25, -0.1), sigma = 1.5, b = c(0.04, 2))
 #' fit <- fit_ARMA(d, p_order = 1, q_order = 2)
 #'
 #' @importFrom stats arima
@@ -150,11 +152,14 @@ fit_ARMA <- function(data, p_order = 0, q_order = 0) {
 #' @return No return value; called for side effects.
 #'
 #' @examples
+#' d <- generate_ARMA_dataset(n = 300, p = c(0.4), q = c(0.25, -0.1), sigma = 1.5, b = c(0.04, 2))
+#' fit <- fit_ARMA(d, p_order = 1, q_order = 2)
 #' plot_ARMA_series(d, series = "y")
 #' plot_ARMA_series(d, series = "e", fit = fit)
 #' plot_ARMA_series(d$y, series = "y")
 #'
 #' @importFrom graphics legend lines plot
+#' @importFrom stats residuals
 #' @export
 plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = NULL) {
   series <- match.arg(series)

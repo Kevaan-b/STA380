@@ -5,7 +5,7 @@ vignette: >
   %\VignetteIndexEntry{ARMA vignette}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-bibliography: ../bibliography.bib
+bibliography: bibliography.bib
 nocite: "@*"
 ---
 
@@ -15,12 +15,12 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 knitr::opts_chunk$set(fig.width = 7.2, fig.height = 12)
+library(armaVisualizer)
 ```
 
 Before we start, we setup the variables needed for the demonstration.
 
 ```{r setup}
-source("../codebase/ARMA/arma.R")
 
 set.seed(42)
 n <- 20
@@ -114,3 +114,4 @@ ARMA(1,1), MA(2), and AR(2) improve fit to different degrees, while ARMA(2,2)
 typically captures the DGP most closely.
 
 ## Bibliography
+
