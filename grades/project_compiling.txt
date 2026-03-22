@@ -1,0 +1,5 @@
+See: https://github.com/Kevaan-b/STA380/issues/6
+
+Technically, yes the package is compiled properly but I noticed the code was refracted a lot. I'm going to not distribute bonus marks at the end of you are just using pre-built functions of an advanced topic.
+
+Mark: 1.8/2 (you did not include an updated generative AI statement in the latest vignette.)
