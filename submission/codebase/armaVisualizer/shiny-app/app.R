@@ -2,101 +2,170 @@ library(shiny)
 library(bslib)
 source("arma.R")
 
+# Helper function for the info icons
 
-ui <- page_sidebar(
+tip_label <- function(label, what, how) {
+  tagList(
+    span(
+      HTML(paste0(label, " ")),
+      tags$span(
+        `data-bs-toggle` = "tooltip",
+        `data-bs-placement` = "right",
+        `data-bs-html` = "true",
+        `data-bs-custom-class` = "tooltip-left",
+        title = paste0(
+          "<b></b> ", what,
+          "<br><br>",
+          "<b>How to use:</b> ", how
+        ),
+        style = "display:inline-flex; align-items:center; justify-content:center;
+                 width:16px; height:16px; border-radius:50%; background:#2C3E50;
+                 color:white; font-size:10px; cursor:pointer; margin-left:4px;",
+        "i"
+      )
+    )
+  )
+}
+
+
+ui <- page_navbar(
   
   theme = bs_theme(version = 5,
                    bootswatch = "flatly",
                    primary = "#2C3E50"),
+  
+  header = tagList(
+    withMathJax(),
+    tags$head(tags$style(HTML(".navbar-nav { margin-left: auto !important; }.tooltip-left .tooltip-inner { text-align: left !important; }"))),
+    tags$script(HTML("
+      document.addEventListener('DOMContentLoaded', function () {
+        var tooltips = document.querySelectorAll('[data-bs-toggle=\"tooltip\"]');
+        tooltips.forEach(function(el) { new bootstrap.Tooltip(el); });
+      });
+    "))
+  ),
+    
 
   title = "Time Series Model Behaviour Explorer",
 
   
-  sidebar = sidebar(
-    
-  
-    h4("Data Generating Process"),
-    p("These inputs control the time series that gets simulated."),
-    
-    textInput(inputId = "p_val",
-              label = "AR coffecients (\\(\\phi_i\\))",
-              value = "0.60,-0.30"),
-    
-    textInput(inputId = "q_val",
-              label = "MA coffecients (\\(\\theta_i\\))",
-              value = "0.45,-0.20"),
-    
-    
-    numericInput(inputId = "n_val",
-                 label = "Sample size (n)",
-                 value = 20),
-    
-    numericInput(inputId = "sigma",
-                 label = "Innovation standard deviation (\\(\\sigma\\))",
-                 value = 1.5),
-    
-    numericInput(inputId = "b1_val",
-                 label = "Trend slope (\\(b_1\\))",
-                 value = 0.04),
-    
-    numericInput(inputId = "b0_val",
-                 label = "Trend intercept (\\(b_0\\))",
-                 value = 2),
-    
-    
-    numericInput(
-      inputId = "seed",
-      label = "Random seed",
-      value = 0,
-      min = 0,
-      step = 1
-    ),
-    
-    hr(),
-    
-    h4("Fitted Model"),
-    p("These inputs control the ARMA model fitted to the generated data."),
-    
-    numericInput(inputId = "fit_p_order",
-                 label = "Fitted AR order",
-                 value = 1,
-                 min = 0),
-    
-    numericInput(inputId = "fit_q_order",
-                 label = "Fitted MA order",
-                 value = 2,
-                 min = 0),
-    
-    checkboxInput("show_fit",
-                  "Show fitted overlay",
-                  value = TRUE),
-    
-    actionButton("match_fit_order",
-                 "Use generated order"),
-    
-    helpText("Try matching the generated order first, then try a simpler or more complex model."),
-    
-    hr(),
-    
-    h4("Display Options"),
-    
-    selectInput(
-      inputId = "series_type",
-      label = "Series to display",
-      choices = c("y (data)" = "y", "e (errors)" = "e"),
-      selected = "y"
-    ),
-    
-    helpText("Choose y to view the simulated data or e to inspect the ARMA error process."),
-    
+
+  # Main Explorer Page
+  nav_panel(
+    title = "Explorer",
+    layout_sidebar(
+      
+      sidebar = sidebar(
+        
+        
+        h4("Data Generating Process"),
+        p("These inputs control the time series that gets simulated."),
+        
+        textInput(inputId = "p_val",
+                  label = tip_label(
+                    "AR coffecients (\\(\\phi_i\\))",
+                    "The autoregressive coefficients that control how past values influence the current value.",
+                    "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."
+                  ),
+                  value = "0.60,-0.30"),
+        
+        textInput(inputId = "q_val",
+                  label = "MA coffecients (\\(\\theta_i\\))",
+                  value = "0.45,-0.20"),
+        
+        
+        numericInput(inputId = "n_val",
+                     label = "Sample size (n)",
+                     value = 20),
+        
+        numericInput(inputId = "sigma",
+                     label = "Innovation standard deviation (\\(\\sigma\\))",
+                     value = 1.5),
+        
+        numericInput(inputId = "b1_val",
+                     label = "Trend slope (\\(b_1\\))",
+                     value = 0.04),
+        
+        numericInput(inputId = "b0_val",
+                     label = "Trend intercept (\\(b_0\\))",
+                     value = 2),
+        
+        
+        numericInput(
+          inputId = "seed",
+          label = "Random seed",
+          value = 0,
+          min = 0,
+          step = 1
+        ),
+        
+        hr(),
+        
+        h4("Fitted Model"),
+        p("These inputs control the ARMA model fitted to the generated data."),
+        
+        numericInput(inputId = "fit_p_order",
+                     label = "Fitted AR order",
+                     value = 1,
+                     min = 0),
+        
+        numericInput(inputId = "fit_q_order",
+                     label = "Fitted MA order",
+                     value = 2,
+                     min = 0),
+        
+        checkboxInput("show_fit",
+                      "Show fitted overlay",
+                      value = TRUE),
+        
+        actionButton("match_fit_order",
+                     "Use generated order"),
+        
+        helpText("Try matching the generated order first, then try a simpler or more complex model."),
+        
+        hr(),
+        
+        h4("Display Options"),
+        
+        selectInput(
+          inputId = "series_type",
+          label = "Series to display",
+          choices = c("y (data)" = "y", "e (errors)" = "e"),
+          selected = "y"
+        ),
+        
+        helpText("Choose y to view the simulated data or e to inspect the ARMA error process."),
+        
+      ),
+      
+      p("This app simulates a time series with a linear trend and ARMA errors."),
+      p("Use the controls on the left to choose the data-generating process, then fit a possibly different ARMA model and inspect the plots below."),
+      
+      
+      uiOutput("equation_panel")
+    )
+
   ),
   
-  p("This app simulates a time series with a linear trend and ARMA errors."),
-  p("Use the controls on the left to choose the data-generating process, then fit a possibly different ARMA model and inspect the plots below."),
-  
-  
-  uiOutput("equation_panel")
+  # About page
+  nav_panel(
+    title = "About",
+    
+    fluidRow(
+      column(
+        width = 8, offset = 2,
+        
+        br(),
+        h2("About This App"),
+        hr(),
+        
+      )
+      
+    )
+    
+  )
 )
+  
 
 to_numeric <- function(x) {
   temp <- x[[1]]
