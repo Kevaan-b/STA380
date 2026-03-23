@@ -70,30 +70,54 @@ ui <- page_navbar(
                   value = "0.60,-0.30"),
         
         textInput(inputId = "q_val",
-                  label = "MA coffecients (\\(\\theta_i\\))",
+                  label = tip_label(
+                    "MA coefficients (\\(\\theta_i\\))",
+                    "The moving-average coefficients that control how past error influence the current value.",
+                    "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."
+                  ),
                   value = "0.45,-0.20"),
         
         
         numericInput(inputId = "n_val",
-                     label = "Sample size (n)",
+                     label = tip_label(
+                       "Sample size (n)",
+                       "The number of time points to simulate.",
+                       "Enter a positive integer. Larger values give smoother, more stable estimates."
+                     ),
                      value = 20),
         
         numericInput(inputId = "sigma",
-                     label = "Innovation standard deviation (\\(\\sigma\\))",
+                     label = tip_label(
+                       "Innovation standard deviation (\\(\\sigma\\))",
+                       "The spread of the white noise innovations driving the ARMA process.",
+                       "Enter a positive number. Larger values mean noisier, more volatile series."
+                     ),
                      value = 1.5),
         
         numericInput(inputId = "b1_val",
-                     label = "Trend slope (\\(b_1\\))",
+                     label = tip_label(
+                       "Trend slope (\\(b_1\\))",
+                       "Controls how steeply the linear trend rises or falls over time.",
+                       "Enter any number. Use 0 for no trend, positive for upward, negative for downward."
+                     ),
                      value = 0.04),
         
         numericInput(inputId = "b0_val",
-                     label = "Trend intercept (\\(b_0\\))",
+                     label = tip_label(
+                       "Trend intercept (\\(b_0\\))",
+                       "The starting value of the series at time t = 0.",
+                       "Enter any number to shift the entire series up or down."
+                     ),
                      value = 2),
         
         
         numericInput(
           inputId = "seed",
-          label = "Random seed",
+          label = tip_label(
+            "Random seed",
+            "Sets the random number generator so results are reproducible.",
+            "Enter any integer. Change it to get a different random draw with the same settings."
+          ),
           value = 0,
           min = 0,
           step = 1
@@ -105,12 +129,20 @@ ui <- page_navbar(
         p("These inputs control the ARMA model fitted to the generated data."),
         
         numericInput(inputId = "fit_p_order",
-                     label = "Fitted AR order",
+                     label = tip_label(
+                       "Fitted AR order",
+                       "The number of AR lags in the model you are fitting to the data.",
+                       "Enter a non-negative integer. Try matching the true order first, then experiment."
+                     ),
                      value = 1,
                      min = 0),
         
         numericInput(inputId = "fit_q_order",
-                     label = "Fitted MA order",
+                     label = tip_label(
+                       "Fitted MA order",
+                       "The number of MA lags in the model you are fitting to the data.",
+                       "Enter a non-negative integer. Try matching the true order first, then experiment."
+                     ),
                      value = 2,
                      min = 0),
         
@@ -343,14 +375,6 @@ server <- function(input, output, session) {
             p("The app simulates data using a linear trend plus ARMA errors."),
             HTML(paste0("$$y_t = ", input$b1_val, "t +", input$b0_val, "+ e_t$$")),
             HTML(paste0("$$e_t = ", ar_equation(to_numeric(strsplit(input$p_val, ",")))," + z_t", ma_equation(to_numeric(strsplit(input$q_val, ","))),"$$")),
-            p("\\(y_t\\): observed time series"),
-            p("\\(e_t\\): ARMA error process"),
-            p("\\(z_t\\): white-noise innovation"),
-            p("\\(b_1\\): trend slope"),
-            p("\\(b_0\\): trend intercept"),
-            p("\\(\\phi_i\\): autoregressive (AR) coefficients"),
-            p("\\(\\theta_i\\): moving-average (MA) coefficients"),
-          
 
           )
         ),
