@@ -369,12 +369,48 @@ server <- function(input, output, session) {
     abline(h = 0, lty = 2, col = "gray40")
   })
   
+  output$acf_plot <- renderPlot({
+    fit <- arma_fit()
+    acf(residuals(fit), main = "ACF of Residuals")
+  })
+
+  output$pacf_plot <- renderPlot({
+    fit <- arma_fit()
+    pacf(residuals(fit), main = "PACF of Residuals")
+  })
+
+  output$coef_plot <- renderPlot({
+    fit <- arma_fit()
+    coefs <- coef(fit)
+    ses <- sqrt(diag(vcov(fit)))
+    lcl <- coefs - 1.96 * ses
+    ucl <- coefs + 1.96 * ses
+
+    plot(1:length(coefs), coefs,
+         ylim = range(lcl, ucl),
+         pch = 16, xaxt = "n",
+         xlab = "", ylab = "Estimate",
+         main = "95% CI for ARMA Coefficients")
+
+    axis(1, at = 1:length(coefs), labels = names(coefs))
+    abline(h = 0, lty = 2, col = "gray40")
+
+    arrows(x0 = 1:length(coefs), y0 = lcl,
+           x1 = 1:length(coefs), y1 = ucl,
+           angle = 90, code = 3, length = 0.1, col = "steelblue")
+  })
+
   output$equation_panel <- renderUI(
     fluidRow(
       column(
         width = 8,
         plotOutput("main_plot", height = "380px"),
-        plotOutput("residual_plot", height = "240px")
+        tabsetPanel(
+          tabPanel("Residuals",    plotOutput("residual_plot", height = "220px")),
+          tabPanel("ACF",          plotOutput("acf_plot",      height = "220px")),
+          tabPanel("PACF",         plotOutput("pacf_plot",     height = "220px")),
+          tabPanel("Coefficients", plotOutput("coef_plot",     height = "220px"))
+        )
       ),
       column(
         width = 4,
