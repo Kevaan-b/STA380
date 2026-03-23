@@ -382,7 +382,9 @@ server <- function(input, output, session) {
   output$coef_plot <- renderPlot({
     fit <- arma_fit()
     coefs <- coef(fit)
-    ses <- sqrt(diag(vcov(fit)))
+    keep <- !(names(coefs) %in% c("intercept", "data$t"))
+    coefs <- coefs[keep]
+    ses <- sqrt(diag(vcov(fit)))[keep] 
     lcl <- coefs - 1.96 * ses
     ucl <- coefs + 1.96 * ses
 
