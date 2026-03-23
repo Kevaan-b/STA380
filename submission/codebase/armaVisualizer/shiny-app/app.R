@@ -2,6 +2,7 @@ library(shiny)
 library(bslib)
 source("arma.R")
 
+
 # Helper function for the info icons
 
 tip_label <- function(label, what, how) {
@@ -28,6 +29,16 @@ tip_label <- function(label, what, how) {
   )
 }
 
+#Helper function for calculating the characteristic polynomial
+check_stationarity <- function(ar_coefs) {
+  if (length(ar_coefs) == 0) return(list(stationary = TRUE, roots = numeric(0)))
+  
+  roots <- Mod(polyroot(c(1, -ar_coefs)))
+  
+  stationary <- all(roots > 1)
+  return(list(stationary = stationary, roots = roots))
+}
+
 
 ui <- page_navbar(
   
@@ -37,18 +48,25 @@ ui <- page_navbar(
   
   header = tagList(
     withMathJax(),
-    tags$head(tags$style(HTML(".tooltip-left .tooltip-inner { text-align: left !important; }.navbar-brand { color: #00000 !important; font-weight: 700 !important; font-size: 22px !important; }"))),    
+    tags$head(tags$style(HTML(".tooltip-left .tooltip-inner { text-align: left !important; }.navbar-brand { color: #00000 !important; font-weight: 700 !important; font-size: 22px !important; }"))),
     tags$script(HTML("
     document.addEventListener('DOMContentLoaded', function () {
-
       var collapse = document.querySelector('.navbar-collapse');
       if (collapse) {
         collapse.style.marginLeft = 'auto';
         collapse.style.flexGrow = '0';
       }
-
       var tooltips = document.querySelectorAll('[data-bs-toggle=\"tooltip\"]');
       tooltips.forEach(function(el) { new bootstrap.Tooltip(el); });
+    });
+  ")),
+    tags$script(HTML("
+    Shiny.addCustomMessageHandler('renderMathJax', function(message) {
+      var el = document.getElementById('mathjax-equations');
+      if (el && window.MathJax) {
+        el.innerHTML = message.html;
+        MathJax.Hub.Queue(['Typeset', MathJax.Hub, el]);
+      }
     });
   "))
   ),
@@ -68,73 +86,27 @@ ui <- page_navbar(
     # Bottom control bar
     tags$div(
       style = "border-top: 1px solid #dee2e6; background: #f8f9fa; padding: 16px 24px;",
-      
       fluidRow(
-        
-        column(2,
-               h6("Data Generating Process", style = "font-weight:600; margin-bottom:10px;"),
-               textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)", 
-                                            "The autoregressive coefficients that control how past values influence the current value.",
-                                            "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."), 
-                         value = "0.60,-0.30"),
-               textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
-                                            "The moving-average coefficients that control how past error influence the current value.",
-                                            "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."),
-                         value = "0.45,-0.20")
-        ),
-        
-        column(2,
-               h6("\u00A0", style = "margin-bottom:10px;"),
-               numericInput("n_val", tip_label("Sample size (n)",
-                                               "The number of time points to simulate.",
-                                               "Enter a positive integer. Larger values give smoother, more stable estimates."),
-                            value = 20),
-               numericInput("sigma", tip_label("Innovation SD (\u03C3)",
-                                               "The spread of the white noise innovations driving the ARMA process.",
-                                               "Enter a positive number. Larger values mean noisier, more volatile series."),
-                            value = 1.5)
-        ),
-        
-        column(2,
-               h6("\u00A0", style = "margin-bottom:10px;"),
-               numericInput("b1_val", tip_label("Trend slope (b\u2081)",
-                                                "Controls how steeply the linear trend rises or falls over time.",
-                                                "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
-                            value = 0.04),
-               numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
-                                                "The starting value of the series at time t = 0.",
-                                                "Enter any number to shift the entire series up or down."),
-                            value = 2)
-        ),
-        
-        column(2,
-               h6("\u00A0", style = "margin-bottom:10px;"),
-               numericInput("seed", tip_label("Random seed",
-                                              "Sets the random number generator so results are reproducible.",
-                                              "Enter any integer. Change it to get a different random draw with the same settings."),
-                            value = 0, min = 0, step = 1)
-        ),
-        
-        column(2,
+        column(3,
                h6("Fitted Model", style = "font-weight:600; margin-bottom:10px;"),
-               numericInput("fit_p_order", tip_label("Fitted AR order",
-                                                     "The number of AR lags in the model you are fitting to the data.",
-                                                     "Enter a non-negative integer. Try matching the true order first, then experiment."),
-                            value = 1, min = 0),
-               numericInput("fit_q_order", tip_label("Fitted MA order",
-                                                     "The number of MA lags in the model you are fitting to the data.",
-                                                     "Enter a non-negative integer. Try matching the true order first, then experiment."),
-                            value = 2, min = 0)
+               numericInput("fit_p_order", tip_label("Fitted AR order", "The number of AR lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 1, min = 0),
+               numericInput("fit_q_order", tip_label("Fitted MA order", "The number of MA lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 2, min = 0)
         ),
         
-        column(2,
+        column(3,
                h6("Options", style = "font-weight:600; margin-bottom:10px;"),
                selectInput("series_type", "Series to display",
                            choices = c("y (data)" = "y", "e (errors)" = "e"), selected = "y"),
                checkboxInput("show_fit", "Show fitted overlay", value = TRUE),
                actionButton("match_fit_order", "Use generated order",
                             class = "btn-sm btn-outline-secondary w-100"),
+        ),
+        
+        column(3,
+               h6("Current Setup", style = "font-weight:600; margin-bottom:10px;"),
+               uiOutput("model_summary")
         )
+        
       )
     )
   ),
@@ -189,35 +161,20 @@ ui <- page_navbar(
         br()
       )
     )
-  ),
-  
-  nav_panel(
-    title = "How to use",
-    fluidRow(
-      column(
-        width = 8, offset = 2,
-        
-        br(),
-        h2("In development"),
-        hr(),
-        
-        br()
-      )
-    )
   )
 )
   
 
 to_numeric <- function(x) {
-  temp <- x[[1]]
+  temp <- if (is.list(x)) x[[1]] else x
   result <- numeric(length(temp))
   
-  if (length(temp) == 0) {
-    return(NULL)
-  }
+  if (length(temp) == 0 || identical(temp, "")) return(numeric(0))
   
-  for (k in 1:length(temp)) {
-    if(is.na(as.numeric(temp[k]))){
+  result <- numeric(length(temp))
+  for (k in seq_along(temp)) {
+    val <- suppressWarnings(as.numeric(temp[k]))
+    if (is.na(val)) {
       stop(
         paste0(
           "Invalid coefficient input: '", temp[k],
@@ -225,24 +182,10 @@ to_numeric <- function(x) {
         )
       )
     }
-    result[k] <- as.numeric(temp[k])
+    result[k] <- val
   }
   
   return(result)
-}
-
-get_coefficients <- function(prefix, order, input) {
-  if (order == 0) {
-    return(numeric(0))
-  }
-  
-  values <- numeric(order)
-  
-  for (i in 1:order) {
-    values[i] <- input[[paste0(prefix, i)]]
-  }
-  
-  return(values)
 }
 
 ar_equation <- function(coefs) {
@@ -282,68 +225,98 @@ ma_equation <- function(coefs) {
   return(paste0(terms, collapse = ""))
 }
 
+`%||%` <- function(a, b) if (!is.null(a)) a else b
 
 server <- function(input, output, session) {
+
+
+  safe_coefs <- function(val) {
+    if (is.null(val) || trimws(val) == "") return(numeric(0))
+    tryCatch(
+      to_numeric(strsplit(val, ",")),
+      error = function(e) numeric(0)  # return empty on invalid input, don't crash
+    )
+  }
   
-  
+  # Empty-check guard
   observeEvent(input$match_fit_order, {
-    updateNumericInput(session,
-                       "fit_p_order",
-                       value = length(to_numeric(strsplit(input$p_val, ","))))
+    req(input$p_val, input$q_val)
+    p_len <- length(safe_coefs(input$p_val))
+    q_len <- length(safe_coefs(input$q_val))
     
-    updateNumericInput(session,
-                       "fit_q_order",
-                       value = length(to_numeric(strsplit(input$q_val, ","))))
+    updateNumericInput(session, "fit_p_order", value = p_len)
+    updateNumericInput(session, "fit_q_order", value = q_len)
   })
   
   arma_data <- reactive({
-    if (trimws(input$p_val) == "") {
-      p <- numeric(0)
-    } else {
-      p <- to_numeric(strsplit(input$p_val, ","))
-    }
-    
-    if (trimws(input$q_val) == "") {
-      q <- numeric(0)
-    } else {
-      q <- to_numeric(strsplit(input$q_val, ","))
-    }
-    
-    
+    req(input$p_val, input$q_val, input$n_val, input$sigma, input$b1_val, input$b0_val, input$seed)
     generate_ARMA_dataset(
-      n = input$n_val,
-      p = p,
-      q = q,
+      n    = input$n_val,
+      p    = safe_coefs(input$p_val),
+      q    = safe_coefs(input$q_val),
       sigma = input$sigma,
-      b = c(input$b1_val, input$b0_val),
+      b    = c(input$b1_val, input$b0_val),
       seed = input$seed
     )
   })
   
   
   arma_fit <- reactive({
-    d <- arma_data()
-    fit_ARMA(
-      d,
-      p_order = input$fit_p_order,
-      q_order = input$fit_q_order
-    )
+    req(input$fit_p_order, input$fit_q_order)
+    fit_ARMA(arma_data(), p_order = input$fit_p_order, q_order = input$fit_q_order)
   })
   
-  output$model_summary <- renderUI({
-    tagList(
-      p(strong("Generated process:"), paste0(" ARMA(", length(to_numeric(strsplit(input$p_val, ","))), ", ", length(to_numeric(strsplit(input$q_val, ","))), ")")),
-      p(strong("Fitted model:"), paste0(" ARMA(", input$fit_p_order, ", ", input$fit_q_order, ")")),
-      p(strong("Series shown:"), if (input$series_type == "y") " observed data (y)" else " error process (e)")
+  
+  output$dgp_equations <- renderUI({
+    req(input$p_val, input$q_val)
+    p_coefs <- safe_coefs(input$p_val)
+    q_coefs <- safe_coefs(input$q_val)
+    b1 <- if (is.null(input$b1_val)) "" else input$b1_val
+    b0 <- if (is.null(input$b0_val)) "" else input$b0_val
+    
+    stationarity <- check_stationarity(p_coefs)
+    if (length(p_coefs) == 0) {
+      stationary_badge <- tags$span(
+        style = "background:#17a2b8; color:white; padding:3px 10px; border-radius:12px; font-size:12px;",
+        "No AR terms — stationary"
+      )
+    } else if (stationarity$stationary) {
+      root_str <- paste(round(stationarity$roots, 3), collapse = ", ")
+      stationary_badge <- tags$span(
+        style = "background:#28a745; color:white; padding:3px 10px; border-radius:12px; font-size:12px;",
+        paste0("✓ Stationary — roots: ", root_str)
+      )
+    } else {
+      root_str <- paste(round(stationarity$roots, 3), collapse = ", ")
+      stationary_badge <- tags$span(
+        style = "background:#dc3545; color:white; padding:3px 10px; border-radius:12px; font-size:12px;",
+        paste0("✗ Non-stationary — roots: ", root_str)
+      )
+    }
+    
+    local({
+      html_content <- paste0(
+        "<p>\\(y_t = ", b1, "t + ", b0, " + e_t\\)</p>",
+        "<p>\\(e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "\\)</p>"
+      )
+      session$onFlushed(function() {
+        session$sendCustomMessage("renderMathJax", list(html = html_content))
+      }, once = TRUE)
+    })
+    
+    wellPanel(
+      h6("True Data-Generating Process", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+      tags$div(
+        id = "mathjax-equations",
+        HTML(paste0("$$y_t = ", b1, "t + ", b0, " + e_t$$")),
+        HTML(paste0("$$e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "$$"))
+      ),
+      tags$div(style = "margin-top: 8px;", stationary_badge)
     )
   })
   
   output$main_plot <- renderPlot({
-    current_fit <- NULL
-    
-    if (input$show_fit) {
-      current_fit <- arma_fit()
-    }
+    current_fit <- if (input$show_fit) arma_fit() else NULL
     
     if(input$series_type == "e"){
       plot_ARMA_series(arma_data(), series = "e", fit = current_fit)
@@ -402,38 +375,73 @@ server <- function(input, output, session) {
            angle = 90, code = 3, length = 0.1, col = "steelblue")
   })
 
-  output$equation_panel <- renderUI(
-    fluidRow(
-      column(
-        width = 8,
-        plotOutput("main_plot", height = "380px"),
-        tabsetPanel(
+  output$equation_panel <- renderUI({
+      fluidRow(
+        column(
+          width = 8,
+          plotOutput("main_plot", height = "380px"),
+          tabsetPanel(
           tabPanel("Residuals",    plotOutput("residual_plot", height = "220px")),
           tabPanel("ACF",          plotOutput("acf_plot",      height = "220px")),
           tabPanel("PACF",         plotOutput("pacf_plot",     height = "220px")),
           tabPanel("Coefficients", plotOutput("coef_plot",     height = "220px"))
         )
-      ),
-      column(
-        width = 4,
-        tags$div(
-          style = "display: flex; flex-direction: column; justify-content: center; height: 620px;",
-          withMathJax(
-            wellPanel(
-              h4("Model Equations"),
-              p("The app simulates data using a linear trend plus ARMA errors."),
-              HTML(paste0("$$y_t = ", input$b1_val, "t +", input$b0_val, "+ e_t$$")),
-              HTML(paste0("$$e_t = ", ar_equation(to_numeric(strsplit(input$p_val, ",")))," + z_t", ma_equation(to_numeric(strsplit(input$q_val, ","))),"$$"))
-            )
-          ),
+        ),
+        column(
+          width = 4,
+          uiOutput("dgp_equations"),  
+          
           wellPanel(
-            h4("Current Setup"),
-            uiOutput("model_summary")
+            h6("Data Generating Process Inputs", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+            textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)",
+                                         "The autoregressive coefficients that control how past values influence the current value.",
+                                         "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."),
+                      value = isolate(input$p_val) %||% "0.60,-0.30"),
+            textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
+                                         "The moving-average coefficients that control how past error influence the current value.",
+                                         "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."),
+                      value = isolate(input$q_val) %||% "0.45,-0.20"),
+            fluidRow(
+              column(6, numericInput("n_val", tip_label("Sample size (n)",
+                                                        "The number of time points to simulate.",
+                                                        "Enter a positive integer. Larger values give smoother, more stable estimates."),
+                                     value = isolate(input$n_val) %||% 20)),
+              column(6, numericInput("sigma", tip_label("Innovation SD (\u03C3)",
+                                                        "The spread of the white noise innovations driving the ARMA process.",
+                                                        "Enter a positive number. Larger values mean noisier, more volatile series."),
+                                     value = isolate(input$sigma) %||% 1.5))
+            ),
+            fluidRow(
+              column(6, numericInput("b1_val", tip_label("Trend slope (b\u2081)",
+                                                         "Controls how steeply the linear trend rises or falls over time.",
+                                                         "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
+                                     value = isolate(input$b1_val) %||% 0.04)),
+              column(6, numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
+                                                         "The starting value of the series at time t = 0.",
+                                                         "Enter any number to shift the entire series up or down."),
+                                     value = isolate(input$b0_val) %||% 2))
+            ),
+            numericInput("seed", tip_label("Random seed",
+                                           "Sets the random number generator so results are reproducible.",
+                                           "Enter any integer. Change it to get a different random draw with the same settings."),
+                         value = isolate(input$seed) %||% 0, min = 0, step = 1)
           )
+          
         )
       )
-    )
+    }
   )
+  output$model_summary <- renderUI({
+    req(input$p_val, input$q_val)
+    p_coefs <- safe_coefs(input$p_val)
+    q_coefs <- safe_coefs(input$q_val)
+    
+    tagList(
+      p(strong("Generated process:"), paste0(" ARMA(", length(p_coefs), ", ", length(q_coefs), ")")),
+      p(strong("Fitted model:"), paste0(" ARMA(", input$fit_p_order, ", ", input$fit_q_order, ")")),
+      p(strong("Series shown:"), if (input$series_type == "y") " observed data (y)" else " error process (e)")
+    )
+  })
 }
 
 
