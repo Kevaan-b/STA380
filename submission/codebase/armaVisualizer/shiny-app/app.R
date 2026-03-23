@@ -2,6 +2,7 @@ library(shiny)
 library(bslib)
 source("arma.R")
 
+
 # Helper function for the info icons
 
 tip_label <- function(label, what, how) {
@@ -28,6 +29,16 @@ tip_label <- function(label, what, how) {
   )
 }
 
+#Helper function for calculating the characteristic polynomial
+check_stationarity <- function(ar_coefs) {
+  if (length(ar_coefs) == 0) return(list(stationary = TRUE, roots = numeric(0)))
+  
+  roots <- Mod(polyroot(c(1, -ar_coefs)))
+  
+  stationary <- all(roots > 1)
+  return(list(stationary = stationary, roots = roots))
+}
+
 
 ui <- page_navbar(
   
@@ -37,18 +48,25 @@ ui <- page_navbar(
   
   header = tagList(
     withMathJax(),
-    tags$head(tags$style(HTML(".tooltip-left .tooltip-inner { text-align: left !important; }.navbar-brand { color: #00000 !important; font-weight: 700 !important; font-size: 22px !important; }"))),    
+    tags$head(tags$style(HTML(".tooltip-left .tooltip-inner { text-align: left !important; }.navbar-brand { color: #00000 !important; font-weight: 700 !important; font-size: 22px !important; }"))),
     tags$script(HTML("
     document.addEventListener('DOMContentLoaded', function () {
-
       var collapse = document.querySelector('.navbar-collapse');
       if (collapse) {
         collapse.style.marginLeft = 'auto';
         collapse.style.flexGrow = '0';
       }
-
       var tooltips = document.querySelectorAll('[data-bs-toggle=\"tooltip\"]');
       tooltips.forEach(function(el) { new bootstrap.Tooltip(el); });
+    });
+  ")),
+    tags$script(HTML("
+    Shiny.addCustomMessageHandler('renderMathJax', function(message) {
+      var el = document.getElementById('mathjax-equations');
+      if (el && window.MathJax) {
+        el.innerHTML = message.html;
+        MathJax.Hub.Queue(['Typeset', MathJax.Hub, el]);
+      }
     });
   "))
   ),
@@ -207,12 +225,17 @@ ma_equation <- function(coefs) {
   return(paste0(terms, collapse = ""))
 }
 
+`%||%` <- function(a, b) if (!is.null(a)) a else b
 
 server <- function(input, output, session) {
-  
+
+
   safe_coefs <- function(val) {
     if (is.null(val) || trimws(val) == "") return(numeric(0))
-    to_numeric(strsplit(val, ","))
+    tryCatch(
+      to_numeric(strsplit(val, ",")),
+      error = function(e) numeric(0)  # return empty on invalid input, don't crash
+    )
   }
   
   # Empty-check guard
@@ -243,15 +266,52 @@ server <- function(input, output, session) {
     fit_ARMA(arma_data(), p_order = input$fit_p_order, q_order = input$fit_q_order)
   })
   
-  output$model_summary <- renderUI({
+  
+  output$dgp_equations <- renderUI({
     req(input$p_val, input$q_val)
     p_coefs <- safe_coefs(input$p_val)
     q_coefs <- safe_coefs(input$q_val)
+    b1 <- if (is.null(input$b1_val)) "" else input$b1_val
+    b0 <- if (is.null(input$b0_val)) "" else input$b0_val
     
-    tagList(
-      p(strong("Generated process:"), paste0(" ARMA(", length(to_numeric(strsplit(input$p_val, ","))), ", ", length(to_numeric(strsplit(input$q_val, ","))), ")")),
-      p(strong("Fitted model:"), paste0(" ARMA(", input$fit_p_order, ", ", input$fit_q_order, ")")),
-      p(strong("Series shown:"), if (input$series_type == "y") " observed data (y)" else " error process (e)")
+    stationarity <- check_stationarity(p_coefs)
+    if (length(p_coefs) == 0) {
+      stationary_badge <- tags$span(
+        style = "background:#17a2b8; color:white; padding:3px 10px; border-radius:12px; font-size:12px;",
+        "No AR terms — stationary"
+      )
+    } else if (stationarity$stationary) {
+      root_str <- paste(round(stationarity$roots, 3), collapse = ", ")
+      stationary_badge <- tags$span(
+        style = "background:#28a745; color:white; padding:3px 10px; border-radius:12px; font-size:12px;",
+        paste0("✓ Stationary — roots: ", root_str)
+      )
+    } else {
+      root_str <- paste(round(stationarity$roots, 3), collapse = ", ")
+      stationary_badge <- tags$span(
+        style = "background:#dc3545; color:white; padding:3px 10px; border-radius:12px; font-size:12px;",
+        paste0("✗ Non-stationary — roots: ", root_str)
+      )
+    }
+    
+    local({
+      html_content <- paste0(
+        "<p>\\(y_t = ", b1, "t + ", b0, " + e_t\\)</p>",
+        "<p>\\(e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "\\)</p>"
+      )
+      session$onFlushed(function() {
+        session$sendCustomMessage("renderMathJax", list(html = html_content))
+      }, once = TRUE)
+    })
+    
+    wellPanel(
+      h6("True Data-Generating Process", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+      tags$div(
+        id = "mathjax-equations",
+        HTML(paste0("$$y_t = ", b1, "t + ", b0, " + e_t$$")),
+        HTML(paste0("$$e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "$$"))
+      ),
+      tags$div(style = "margin-top: 8px;", stationary_badge)
     )
   })
   
@@ -283,11 +343,6 @@ server <- function(input, output, session) {
   })
   
   output$equation_panel <- renderUI({
-    p_coefs <- safe_coefs(input$p_val)
-    q_coefs <- safe_coefs(input$q_val)
-    b1 <- if (is.null(input$b1_val)) "" else input$b1_val
-    b0 <- if (is.null(input$b0_val)) "" else input$b0_val
-    
       fluidRow(
         column(
           width = 8,
@@ -296,48 +351,42 @@ server <- function(input, output, session) {
         ),
         column(
           width = 4,
-          style = "overflow-y: auto;",
+          uiOutput("dgp_equations"),  
           
-          wellPanel(
-            h6("True Data-Generating Process", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
-            HTML(paste0("$$y_t = ", input$b1_val, "t +", input$b0_val, "+ e_t$$")),
-            HTML(paste0("$$e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "$$"))          
-            ),
-        
           wellPanel(
             h6("Data Generating Process Inputs", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
             textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)",
                                          "The autoregressive coefficients that control how past values influence the current value.",
                                          "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."),
-                      value = "0.60,-0.30"),
+                      value = isolate(input$p_val) %||% "0.60,-0.30"),
             textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
                                          "The moving-average coefficients that control how past error influence the current value.",
                                          "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."),
-                      value = "0.45,-0.20"),
+                      value = isolate(input$q_val) %||% "0.45,-0.20"),
             fluidRow(
               column(6, numericInput("n_val", tip_label("Sample size (n)",
                                                         "The number of time points to simulate.",
                                                         "Enter a positive integer. Larger values give smoother, more stable estimates."),
-                                     value = 20)),
+                                     value = isolate(input$n_val) %||% 20)),
               column(6, numericInput("sigma", tip_label("Innovation SD (\u03C3)",
                                                         "The spread of the white noise innovations driving the ARMA process.",
                                                         "Enter a positive number. Larger values mean noisier, more volatile series."),
-                                     value = 1.5))
+                                     value = isolate(input$sigma) %||% 1.5))
             ),
             fluidRow(
               column(6, numericInput("b1_val", tip_label("Trend slope (b\u2081)",
                                                          "Controls how steeply the linear trend rises or falls over time.",
                                                          "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
-                                     value = 0.04)),
+                                     value = isolate(input$b1_val) %||% 0.04)),
               column(6, numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
                                                          "The starting value of the series at time t = 0.",
                                                          "Enter any number to shift the entire series up or down."),
-                                     value = 2))
+                                     value = isolate(input$b0_val) %||% 2))
             ),
             numericInput("seed", tip_label("Random seed",
                                            "Sets the random number generator so results are reproducible.",
                                            "Enter any integer. Change it to get a different random draw with the same settings."),
-                         value = 0, min = 0, step = 1)
+                         value = isolate(input$seed) %||% 0, min = 0, step = 1)
           )
           
         )
