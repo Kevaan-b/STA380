@@ -6,23 +6,24 @@ source("arma.R")
 
 tip_label <- function(label, what, how) {
   tagList(
-    span(
-      HTML(paste0(label, " ")),
+    tags$div(
+      style = "display: flex; align-items: center; gap: 6px;",
       tags$span(
         `data-bs-toggle` = "tooltip",
         `data-bs-placement` = "right",
         `data-bs-html` = "true",
         `data-bs-custom-class` = "tooltip-left",
         title = paste0(
-          "<b></b> ", what,
+          "<b>What:</b> ", what,
           "<br><br>",
           "<b>How to use:</b> ", how
         ),
         style = "display:inline-flex; align-items:center; justify-content:center;
                  width:16px; height:16px; border-radius:50%; background:#2C3E50;
-                 color:white; font-size:10px; cursor:pointer; margin-left:4px;",
+                 color:white; font-size:10px; cursor:pointer; flex-shrink:0;",
         "i"
-      )
+      ),
+      span(HTML(label))
     )
   )
 }
@@ -36,13 +37,20 @@ ui <- page_navbar(
   
   header = tagList(
     withMathJax(),
-    tags$head(tags$style(HTML(".navbar-nav { margin-left: auto !important; }.tooltip-left .tooltip-inner { text-align: left !important; }"))),
+    tags$head(tags$style(HTML(".tooltip-left .tooltip-inner { text-align: left !important; }.navbar-brand { color: #00000 !important; font-weight: 700 !important; font-size: 22px !important; }"))),    
     tags$script(HTML("
-      document.addEventListener('DOMContentLoaded', function () {
-        var tooltips = document.querySelectorAll('[data-bs-toggle=\"tooltip\"]');
-        tooltips.forEach(function(el) { new bootstrap.Tooltip(el); });
-      });
-    "))
+    document.addEventListener('DOMContentLoaded', function () {
+
+      var collapse = document.querySelector('.navbar-collapse');
+      if (collapse) {
+        collapse.style.marginLeft = 'auto';
+        collapse.style.flexGrow = '0';
+      }
+
+      var tooltips = document.querySelectorAll('[data-bs-toggle=\"tooltip\"]');
+      tooltips.forEach(function(el) { new bootstrap.Tooltip(el); });
+    });
+  "))
   ),
     
 
@@ -63,7 +71,7 @@ ui <- page_navbar(
         
         textInput(inputId = "p_val",
                   label = tip_label(
-                    "AR coffecients (\\(\\phi_i\\))",
+                    "AR coefficients (\u03C6\u1D62)",
                     "The autoregressive coefficients that control how past values influence the current value.",
                     "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."
                   ),
@@ -191,10 +199,43 @@ ui <- page_navbar(
         h2("About This App"),
         hr(),
         
+        wellPanel(
+          h4("Purpose"),
+          p("This app simulates a time series with a linear trend and ARMA errors.
+          To get started, go to the \"Explorer\" tab and use the controls on the left to choose the data-generating process,
+          fit a possibly different ARMA model, and inspect how well it captures
+          the underlying structure through the plots and residuals.")
+        ),
+        
+        wellPanel(
+          h4("What to Look For"),
+          p("If the fitted model is doing a good job, the residual plot should not show a strong pattern over time."),
+          p("If the residuals still show visible structure, the fitted model may be missing part of the time-series behaviour.")
+        ),
+        
+        wellPanel(
+          h4("How to Use"),
+          tags$ul(
+            tags$li("Set the fitted model order to match the true process — residuals should look like white noise."),
+            tags$li("Overfit by using a larger order than the true process — watch what changes."),
+            tags$li("Underfit by using a smaller order — see if residual structure remains."),
+            tags$li("Increase sample size to see how estimation improves with more data.")
+          )
+        ),
+        
+        wellPanel(
+          h4("Key Terms"),
+          tags$ul(
+            tags$li(strong("AR (AutoRegressive):"), " current value depends on its own past values."),
+            tags$li(strong("MA (Moving Average):"), " current value depends on past error terms."),
+            tags$li(strong("ARMA(p, q):"), " p AR lags and q MA lags combined."),
+            tags$li(strong("Residuals:"), " what's left after the model is subtracted from the data. A good fit leaves no visible pattern.")
+          )
+        ),
+        
+        br()
       )
-      
     )
-    
   )
 )
   
@@ -382,10 +423,6 @@ server <- function(input, output, session) {
         wellPanel(
           h4("Current Setup"),
           uiOutput("model_summary"),
-          hr(),
-          h4("What to Look For"),
-          p("If the fitted model is doing a good job, the residual plot should not show a strong pattern over time."),
-          p("If the residuals still show visible structure, the fitted model may be missing part of the time-series behaviour.")
         )
     )
   ))
