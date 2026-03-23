@@ -69,20 +69,26 @@ ui <- page_navbar(
     tags$div(
       style = "border-top: 1px solid #dee2e6; background: #f8f9fa; padding: 16px 24px;",
       fluidRow(
-        column(2,
+        column(3,
                h6("Fitted Model", style = "font-weight:600; margin-bottom:10px;"),
                numericInput("fit_p_order", tip_label("Fitted AR order", "The number of AR lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 1, min = 0),
                numericInput("fit_q_order", tip_label("Fitted MA order", "The number of MA lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 2, min = 0)
         ),
         
-        column(2,
+        column(3,
                h6("Options", style = "font-weight:600; margin-bottom:10px;"),
                selectInput("series_type", "Series to display",
                            choices = c("y (data)" = "y", "e (errors)" = "e"), selected = "y"),
                checkboxInput("show_fit", "Show fitted overlay", value = TRUE),
                actionButton("match_fit_order", "Use generated order",
                             class = "btn-sm btn-outline-secondary w-100"),
+        ),
+        
+        column(3,
+               h6("Current Setup", style = "font-weight:600; margin-bottom:10px;"),
+               uiOutput("model_summary")
         )
+        
       )
     )
   ),
@@ -98,55 +104,6 @@ ui <- page_navbar(
         
         br(),
         h2("About This App"),
-        hr(),
-        
-        wellPanel(
-          h4("Purpose"),
-          p("This app simulates a time series with a linear trend and ARMA errors.
-          To get started, go to the \"Explorer\" tab and use the controls on the left to choose the data-generating process,
-          fit a possibly different ARMA model, and inspect how well it captures
-          the underlying structure through the plots and residuals.")
-        ),
-        
-        wellPanel(
-          h4("What to Look For"),
-          p("If the fitted model is doing a good job, the residual plot should not show a strong pattern over time."),
-          p("If the residuals still show visible structure, the fitted model may be missing part of the time-series behaviour.")
-        ),
-        
-        wellPanel(
-          h4("How to Use"),
-          tags$ul(
-            tags$li("Set the fitted model order to match the true process — residuals should look like white noise."),
-            tags$li("Overfit by using a larger order than the true process — watch what changes."),
-            tags$li("Underfit by using a smaller order — see if residual structure remains."),
-            tags$li("Increase sample size to see how estimation improves with more data.")
-          )
-        ),
-        
-        wellPanel(
-          h4("Key Terms"),
-          tags$ul(
-            tags$li(strong("AR (AutoRegressive):"), " current value depends on its own past values."),
-            tags$li(strong("MA (Moving Average):"), " current value depends on past error terms."),
-            tags$li(strong("ARMA(p, q):"), " p AR lags and q MA lags combined."),
-            tags$li(strong("Residuals:"), " what's left after the model is subtracted from the data. A good fit leaves no visible pattern.")
-          )
-        ),
-        
-        br()
-      )
-    )
-  ),
-  
-  nav_panel(
-    title = "How to use",
-    fluidRow(
-      column(
-        width = 8, offset = 2,
-        
-        br(),
-        h2("In development"),
         hr(),
         
         wellPanel(
@@ -339,7 +296,7 @@ server <- function(input, output, session) {
         ),
         column(
           width = 4,
-          style = "overflow-y: auto; max-height: 620px;",
+          style = "overflow-y: auto;",
           
           wellPanel(
             h6("True Data-Generating Process", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
@@ -381,11 +338,8 @@ server <- function(input, output, session) {
                                            "Sets the random number generator so results are reproducible.",
                                            "Enter any integer. Change it to get a different random draw with the same settings."),
                          value = 0, min = 0, step = 1)
-          ),
-          wellPanel(
-            h6("Current Setup", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
-            uiOutput("model_summary")
           )
+          
         )
       )
     }
