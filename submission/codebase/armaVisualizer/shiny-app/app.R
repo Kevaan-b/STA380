@@ -61,131 +61,84 @@ ui <- page_navbar(
   # Main Explorer Page
   nav_panel(
     title = "Explorer",
-    layout_sidebar(
+    
+    # Main content area
+    uiOutput("equation_panel"),
+    
+    # Bottom control bar
+    tags$div(
+      style = "border-top: 1px solid #dee2e6; background: #f8f9fa; padding: 16px 24px;",
       
-      sidebar = sidebar(
+      fluidRow(
         
-        
-        h4("Data Generating Process"),
-        p("These inputs control the time series that gets simulated."),
-        
-        textInput(inputId = "p_val",
-                  label = tip_label(
-                    "AR coefficients (\u03C6\u1D62)",
-                    "The autoregressive coefficients that control how past values influence the current value.",
-                    "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."
-                  ),
-                  value = "0.60,-0.30"),
-        
-        textInput(inputId = "q_val",
-                  label = tip_label(
-                    "MA coefficients (\\(\\theta_i\\))",
-                    "The moving-average coefficients that control how past error influence the current value.",
-                    "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."
-                  ),
-                  value = "0.45,-0.20"),
-        
-        
-        numericInput(inputId = "n_val",
-                     label = tip_label(
-                       "Sample size (n)",
-                       "The number of time points to simulate.",
-                       "Enter a positive integer. Larger values give smoother, more stable estimates."
-                     ),
-                     value = 20),
-        
-        numericInput(inputId = "sigma",
-                     label = tip_label(
-                       "Innovation standard deviation (\\(\\sigma\\))",
-                       "The spread of the white noise innovations driving the ARMA process.",
-                       "Enter a positive number. Larger values mean noisier, more volatile series."
-                     ),
-                     value = 1.5),
-        
-        numericInput(inputId = "b1_val",
-                     label = tip_label(
-                       "Trend slope (\\(b_1\\))",
-                       "Controls how steeply the linear trend rises or falls over time.",
-                       "Enter any number. Use 0 for no trend, positive for upward, negative for downward."
-                     ),
-                     value = 0.04),
-        
-        numericInput(inputId = "b0_val",
-                     label = tip_label(
-                       "Trend intercept (\\(b_0\\))",
-                       "The starting value of the series at time t = 0.",
-                       "Enter any number to shift the entire series up or down."
-                     ),
-                     value = 2),
-        
-        
-        numericInput(
-          inputId = "seed",
-          label = tip_label(
-            "Random seed",
-            "Sets the random number generator so results are reproducible.",
-            "Enter any integer. Change it to get a different random draw with the same settings."
-          ),
-          value = 0,
-          min = 0,
-          step = 1
+        column(2,
+               h6("Data Generating Process", style = "font-weight:600; margin-bottom:10px;"),
+               textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)", 
+                                            "The autoregressive coefficients that control how past values influence the current value.",
+                                            "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."), 
+                         value = "0.60,-0.30"),
+               textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
+                                            "The moving-average coefficients that control how past error influence the current value.",
+                                            "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."),
+                         value = "0.45,-0.20")
         ),
         
-        hr(),
-        
-        h4("Fitted Model"),
-        p("These inputs control the ARMA model fitted to the generated data."),
-        
-        numericInput(inputId = "fit_p_order",
-                     label = tip_label(
-                       "Fitted AR order",
-                       "The number of AR lags in the model you are fitting to the data.",
-                       "Enter a non-negative integer. Try matching the true order first, then experiment."
-                     ),
-                     value = 1,
-                     min = 0),
-        
-        numericInput(inputId = "fit_q_order",
-                     label = tip_label(
-                       "Fitted MA order",
-                       "The number of MA lags in the model you are fitting to the data.",
-                       "Enter a non-negative integer. Try matching the true order first, then experiment."
-                     ),
-                     value = 2,
-                     min = 0),
-        
-        checkboxInput("show_fit",
-                      "Show fitted overlay",
-                      value = TRUE),
-        
-        actionButton("match_fit_order",
-                     "Use generated order"),
-        
-        helpText("Try matching the generated order first, then try a simpler or more complex model."),
-        
-        hr(),
-        
-        h4("Display Options"),
-        
-        selectInput(
-          inputId = "series_type",
-          label = "Series to display",
-          choices = c("y (data)" = "y", "e (errors)" = "e"),
-          selected = "y"
+        column(2,
+               h6("\u00A0", style = "margin-bottom:10px;"),
+               numericInput("n_val", tip_label("Sample size (n)",
+                                               "The number of time points to simulate.",
+                                               "Enter a positive integer. Larger values give smoother, more stable estimates."),
+                            value = 20),
+               numericInput("sigma", tip_label("Innovation SD (\u03C3)",
+                                               "The spread of the white noise innovations driving the ARMA process.",
+                                               "Enter a positive number. Larger values mean noisier, more volatile series."),
+                            value = 1.5)
         ),
         
-        helpText("Choose y to view the simulated data or e to inspect the ARMA error process."),
+        column(2,
+               h6("\u00A0", style = "margin-bottom:10px;"),
+               numericInput("b1_val", tip_label("Trend slope (b\u2081)",
+                                                "Controls how steeply the linear trend rises or falls over time.",
+                                                "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
+                            value = 0.04),
+               numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
+                                                "The starting value of the series at time t = 0.",
+                                                "Enter any number to shift the entire series up or down."),
+                            value = 2)
+        ),
         
-      ),
-      
-      p("This app simulates a time series with a linear trend and ARMA errors."),
-      p("Use the controls on the left to choose the data-generating process, then fit a possibly different ARMA model and inspect the plots below."),
-      
-      
-      uiOutput("equation_panel")
+        column(2,
+               h6("\u00A0", style = "margin-bottom:10px;"),
+               numericInput("seed", tip_label("Random seed",
+                                              "Sets the random number generator so results are reproducible.",
+                                              "Enter any integer. Change it to get a different random draw with the same settings."),
+                            value = 0, min = 0, step = 1)
+        ),
+        
+        column(2,
+               h6("Fitted Model", style = "font-weight:600; margin-bottom:10px;"),
+               numericInput("fit_p_order", tip_label("Fitted AR order",
+                                                     "The number of AR lags in the model you are fitting to the data.",
+                                                     "Enter a non-negative integer. Try matching the true order first, then experiment."),
+                            value = 1, min = 0),
+               numericInput("fit_q_order", tip_label("Fitted MA order",
+                                                     "The number of MA lags in the model you are fitting to the data.",
+                                                     "Enter a non-negative integer. Try matching the true order first, then experiment."),
+                            value = 2, min = 0)
+        ),
+        
+        column(2,
+               h6("Options", style = "font-weight:600; margin-bottom:10px;"),
+               selectInput("series_type", "Series to display",
+                           choices = c("y (data)" = "y", "e (errors)" = "e"), selected = "y"),
+               checkboxInput("show_fit", "Show fitted overlay", value = TRUE),
+               actionButton("match_fit_order", "Use generated order",
+                            class = "btn-sm btn-outline-secondary w-100"),
+        )
+      )
     )
-
   ),
+
   
   # About page
   nav_panel(
@@ -232,6 +185,21 @@ ui <- page_navbar(
             tags$li(strong("Residuals:"), " what's left after the model is subtracted from the data. A good fit leaves no visible pattern.")
           )
         ),
+        
+        br()
+      )
+    )
+  ),
+  
+  nav_panel(
+    title = "How to use",
+    fluidRow(
+      column(
+        width = 8, offset = 2,
+        
+        br(),
+        h2("In development"),
+        hr(),
         
         br()
       )
@@ -404,29 +372,30 @@ server <- function(input, output, session) {
   output$equation_panel <- renderUI(
     fluidRow(
       column(
-        width = 7,
-        plotOutput("main_plot", height = "420px"),
-        plotOutput("residual_plot", height = "260px")
+        width = 8,
+        plotOutput("main_plot", height = "380px"),
+        plotOutput("residual_plot", height = "240px")
       ),
       column(
-        width = 5,
-        withMathJax(
+        width = 4,
+        tags$div(
+          style = "display: flex; flex-direction: column; justify-content: center; height: 620px;",
+          withMathJax(
+            wellPanel(
+              h4("Model Equations"),
+              p("The app simulates data using a linear trend plus ARMA errors."),
+              HTML(paste0("$$y_t = ", input$b1_val, "t +", input$b0_val, "+ e_t$$")),
+              HTML(paste0("$$e_t = ", ar_equation(to_numeric(strsplit(input$p_val, ",")))," + z_t", ma_equation(to_numeric(strsplit(input$q_val, ","))),"$$"))
+            )
+          ),
           wellPanel(
-            h4("Model Equations"),
-            p("The app simulates data using a linear trend plus ARMA errors."),
-            HTML(paste0("$$y_t = ", input$b1_val, "t +", input$b0_val, "+ e_t$$")),
-            HTML(paste0("$$e_t = ", ar_equation(to_numeric(strsplit(input$p_val, ",")))," + z_t", ma_equation(to_numeric(strsplit(input$q_val, ","))),"$$")),
-
+            h4("Current Setup"),
+            uiOutput("model_summary")
           )
-        ),
-        
-        wellPanel(
-          h4("Current Setup"),
-          uiOutput("model_summary"),
         )
+      )
     )
-  ))
-    
+  )
 }
 
 
