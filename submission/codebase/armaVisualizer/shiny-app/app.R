@@ -393,6 +393,17 @@ server <- function(input, output, session) {
       )
     }
   )
+  output$model_summary <- renderUI({
+    req(input$p_val, input$q_val)
+    p_coefs <- safe_coefs(input$p_val)
+    q_coefs <- safe_coefs(input$q_val)
+    
+    tagList(
+      p(strong("Generated process:"), paste0(" ARMA(", length(p_coefs), ", ", length(q_coefs), ")")),
+      p(strong("Fitted model:"), paste0(" ARMA(", input$fit_p_order, ", ", input$fit_q_order, ")")),
+      p(strong("Series shown:"), if (input$series_type == "y") " observed data (y)" else " error process (e)")
+    )
+  })
 }
 
 
