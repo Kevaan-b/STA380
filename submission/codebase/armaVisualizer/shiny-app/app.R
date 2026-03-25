@@ -285,7 +285,7 @@ server <- function(input, output, session) {
   
   
   output$dgp_equations <- renderUI({
-    req(input$p_val, input$q_val)
+    
     p_coefs <- safe_coefs(input$p_val)
     q_coefs <- safe_coefs(input$q_val)
     b1 <- if (is.null(input$b1_val)) "" else input$b1_val
