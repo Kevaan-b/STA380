@@ -6,26 +6,24 @@ source("arma.R")
 # Helper function for the info icons
 
 tip_label <- function(label, what, how) {
-  tagList(
-    tags$div(
-      style = "display: flex; align-items: center; gap: 6px;",
-      tags$span(
-        `data-bs-toggle` = "tooltip",
-        `data-bs-placement` = "right",
-        `data-bs-html` = "true",
-        `data-bs-custom-class` = "tooltip-left",
-        title = paste0(
-          "<b>What:</b> ", what,
-          "<br><br>",
-          "<b>How to use:</b> ", how
-        ),
-        style = "display:inline-flex; align-items:center; justify-content:center;
-                 width:16px; height:16px; border-radius:50%; background:#2C3E50;
-                 color:white; font-size:10px; cursor:pointer; flex-shrink:0;",
-        "i"
+  tags$div(
+    style = "display: flex; align-items: center; gap: 6px;",
+    tags$span(
+      `data-bs-toggle` = "tooltip",
+      `data-bs-placement` = "right",
+      `data-bs-html` = "true",
+      `data-bs-custom-class` = "tooltip-left",
+      `data-bs-title` = paste0(
+        "<b>What:</b> ", what,
+        "<br><br>",
+        "<b>How to use:</b> ", how
       ),
-      span(HTML(label))
-    )
+      style = "display:inline-flex; align-items:center; justify-content:center;
+               width:16px; height:16px; border-radius:50%; background:#2C3E50;
+               color:white; font-size:10px; cursor:pointer; flex-shrink:0;",
+      "i"
+    ),
+    span(label)
   )
 }
 
@@ -50,16 +48,20 @@ ui <- page_navbar(
     withMathJax(),
     tags$head(tags$style(HTML(".tooltip-left .tooltip-inner { text-align: left !important; }.navbar-brand { color: #00000 !important; font-weight: 700 !important; font-size: 22px !important; }"))),
     tags$script(HTML("
-    document.addEventListener('DOMContentLoaded', function () {
-      var collapse = document.querySelector('.navbar-collapse');
-      if (collapse) {
-        collapse.style.marginLeft = 'auto';
-        collapse.style.flexGrow = '0';
-      }
-      var tooltips = document.querySelectorAll('[data-bs-toggle=\"tooltip\"]');
-      tooltips.forEach(function(el) { new bootstrap.Tooltip(el); });
-    });
-  ")),
+      document.addEventListener('DOMContentLoaded', function () {
+        var collapse = document.querySelector('.navbar-collapse');
+        if (collapse) {
+          collapse.style.marginLeft = 'auto';
+          collapse.style.flexGrow = '0';
+        }
+    
+        new bootstrap.Tooltip(document.body, {
+          selector: '[data-bs-toggle=\"tooltip\"]',
+          html: true,
+          trigger: 'hover focus'
+        });
+      });
+    ")),
     tags$script(HTML("
     Shiny.addCustomMessageHandler('renderMathJax', function(message) {
       var el = document.getElementById('mathjax-equations');
@@ -204,13 +206,17 @@ ar_equation <- function(coefs) {
   for (i in 1:length(coefs)) {
     coef <- coefs[i]
     
-    if (i == 1) {
-      sign <- if (coef < 0) "-" else ""
-    } else {
+    if(abs(coef) == 0){
+      terms[i] <- paste0("")
+    }else{
       sign <- if (coef < 0) " - " else " + "
+      
+      if(coef == 1 || coef == -1){
+        terms[i] <- paste0(sign, "z_{t-", i, "}")
+      }else{
+        terms[i] <- paste0(sign, abs(coef), "z_{t-", i, "}")
+      }
     }
-    
-    terms[i] <- paste0(sign, abs(coef), "e_{t-", i, "}")
   }
   
   return(paste0(terms, collapse = ""))
@@ -225,9 +231,18 @@ ma_equation <- function(coefs) {
     
     coef <- coefs[i]
     
-    sign <- if (coef < 0) " - " else " + "
+    if(abs(coef) == 0){
+      terms[i] <- paste0("")
+    }else{
+      sign <- if (coef < 0) " - " else " + "
+      
+      if(coef == 1 || coef == -1){
+        terms[i] <- paste0(sign, "z_{t-", i, "}")
+      }else{
+        terms[i] <- paste0(sign, abs(coef), "z_{t-", i, "}")
+      }
+    }
     
-    terms[i] <- paste0(sign, abs(coef), "z_{t-", i, "}")
   }
   
   return(paste0(terms, collapse = ""))
@@ -255,18 +270,20 @@ server <- function(input, output, session) {
     updateNumericInput(session, "fit_p_order", value = p_len)
     updateNumericInput(session, "fit_q_order", value = q_len)
   })
+
   
   arma_data <- reactive({
-    req(input$p_val, input$q_val, input$n_val, input$sigma, input$b1_val, input$b0_val, input$seed)
+    req(input$n_val, input$sigma, input$b1_val, input$b0_val, input$seed)
     generate_ARMA_dataset(
-      n    = input$n_val,
-      p    = safe_coefs(input$p_val),
-      q    = safe_coefs(input$q_val),
+      n     = input$n_val,
+      p     = safe_coefs(input$p_val),
+      q     = safe_coefs(input$q_val),
       sigma = input$sigma,
-      b    = c(input$b1_val, input$b0_val),
-      seed = input$seed
+      b     = c(input$b1_val, input$b0_val),
+      seed  = input$seed
     )
   })
+  
   
   
   arma_fit <- reactive({
@@ -315,9 +332,13 @@ server <- function(input, output, session) {
     wellPanel(
       h6("True Data-Generating Process", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
       tags$div(
-        id = "mathjax-equations",
-        HTML(paste0("$$y_t = ", b1, "t + ", b0, " + e_t$$")),
-        HTML(paste0("$$e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "$$"))
+        style = "overflow-x: auto; overflow-y: hidden; width: 100%;",
+        tags$div(
+          id = "mathjax-equations",
+          style = "min-width: max-content; white-space: nowrap;",
+          HTML(paste0("$$y_t = ", b1, "t + ", b0, " + e_t$$")),
+          HTML(paste0("$$e_t = ", ar_equation(p_coefs), " + z_t", ma_equation(q_coefs), "$$"))
+        )
       ),
       tags$div(style = "margin-top: 8px;", stationary_badge)
     )
