@@ -159,12 +159,24 @@ ui <- page_navbar(
         ),
         
         wellPanel(
+          h4("Features"),
+          tags$ul(
+            tags$li(strong("Data-Generating Process:"), " Set AR coefficients (φ), MA coefficients (θ), sample size (n), innovation SD (σ), trend slope (b₁) and intercept (b₀), and random seed."),
+            tags$li(strong("Fitted Model:"), " Choose AR order (p) and MA order (q) for the model to fit. Use 'Use generated order' to match the true process."),
+            tags$li(strong("Series Display:"), " Toggle between observed data (y) and error process (e). Check 'Show fitted overlay' to visualize the model fit."),
+            tags$li(strong("Diagnostic Plots:"), " Main series plot, residual time plot, ACF and PACF of residuals for checking model adequacy."),
+            tags$li(strong("Estimated Coefficients:"), " View the fitted φ, θ, b₀, b₁ values and σ̂ estimate.")
+          )
+        ),
+        
+        wellPanel(
           h4("Key Terms"),
           tags$ul(
-            tags$li(strong("AR (AutoRegressive):"), " current value depends on its own past values."),
+            tags$li(strong("AR (Auto Regressive):"), " current value depends on its own past values."),
             tags$li(strong("MA (Moving Average):"), " current value depends on past error terms."),
             tags$li(strong("ARMA(p, q):"), " p AR lags and q MA lags combined."),
-            tags$li(strong("Residuals:"), " what's left after the model is subtracted from the data. A good fit leaves no visible pattern.")
+            tags$li(strong("Residuals:"), " what's left after the model is subtracted from the data. A good fit leaves no visible pattern."),
+            tags$li(strong("Stationarity:"), " A process is stationary if its characteristic polynomial roots lie outside the unit circle. The app checks this and displays a stationarity badge.")
           )
         ),
         
