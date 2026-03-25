@@ -1,5 +1,6 @@
 library(testthat)
 
+
 N        <- 20
 SIGMA    <- 1.5
 B        <- c(0.2, 2)          
