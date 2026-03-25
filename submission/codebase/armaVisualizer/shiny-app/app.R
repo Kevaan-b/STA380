@@ -92,8 +92,8 @@ ui <- page_navbar(
         column(3,
                wellPanel(
                  h6("Fitted Model", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
-                 numericInput("fit_p_order", tip_label("Fitted AR order", "The number of AR lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 1, min = 0),
-                 numericInput("fit_q_order", tip_label("Fitted MA order", "The number of MA lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 2, min = 0)
+                 numericInput("fit_p_order", tip_label("Fitted AR order", "The number of AR lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 0, min = 0),
+                 numericInput("fit_q_order", tip_label("Fitted MA order", "The number of MA lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 0, min = 0)
                )
         ),
         
@@ -405,27 +405,27 @@ server <- function(input, output, session) {
             h6("Data Generating Process Inputs", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
             textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)",
                                          "The autoregressive coefficients that control how past values influence the current value.",
-                                         "Enter numbers separated by commas, e.g. 0.60,-0.30 for an AR(2) process."),
-                      value = isolate(input$p_val) %||% "0.60,-0.30"),
+                                         "Enter numbers separated by commas, e.g. 0.60,0.30 for an AR(2) process."),
+                      value = isolate(input$p_val) %||% "0.60,0.30"),
             textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
                                          "The moving-average coefficients that control how past error influence the current value.",
-                                         "Enter numbers separated by commas, e.g. 0.45,-0.20 for an MA(2) process."),
-                      value = isolate(input$q_val) %||% "0.45,-0.20"),
+                                         "Enter numbers separated by commas, e.g. 0.45,0.20 for an MA(2) process."),
+                      value = isolate(input$q_val) %||% "0.45,0.20"),
             fluidRow(
               column(6, numericInput("n_val", tip_label("Sample size (n)",
                                                         "The number of time points to simulate.",
                                                         "Enter a positive integer. Larger values give smoother, more stable estimates."),
-                                     value = isolate(input$n_val) %||% 20)),
+                                     value = isolate(input$n_val) %||% 100, min = 10, step = 1)),
               column(6, numericInput("sigma", tip_label("Innovation SD (\u03C3)",
                                                         "The spread of the white noise innovations driving the ARMA process.",
                                                         "Enter a positive number. Larger values mean noisier, more volatile series."),
-                                     value = isolate(input$sigma) %||% 1.5))
+                                     value = isolate(input$sigma) %||% 1.5, min = 0, step = 0.01), )
             ),
             fluidRow(
               column(6, numericInput("b1_val", tip_label("Trend slope (b\u2081)",
                                                          "Controls how steeply the linear trend rises or falls over time.",
                                                          "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
-                                     value = isolate(input$b1_val) %||% 0.04)),
+                                     value = isolate(input$b1_val) %||% 0.2)),
               column(6, numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
                                                          "The starting value of the series at time t = 0.",
                                                          "Enter any number to shift the entire series up or down."),
