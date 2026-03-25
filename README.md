@@ -15,7 +15,7 @@ https://019d0430-b246-4443-c144-9437cec4e883.share.connect.posit.cloud/
 When in submission/codebase/armaVisualizer, run the following:
 
 ```r
-Rscript -e 'shiny::runApp("shiny-app/Shiny.R")'
+Rscript -e 'shiny::runApp("shiny-app")'
 ```
 Then type the corresponding address in your web browser to access the RShiny website.
 
@@ -26,4 +26,3 @@ In armaVisualizer:
 ```r
 devtools::test()
 ```
-

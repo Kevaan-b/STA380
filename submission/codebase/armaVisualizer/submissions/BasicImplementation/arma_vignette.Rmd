@@ -1,0 +1,119 @@
+**Generative AI Statement:** Used generative AI to help with parts of the website design, wording, and some code cleanup while building the Shiny app.
+
+---
+title: "ARMA vignette"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ARMA vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: bibliography.bib
+nocite: "@*"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+knitr::opts_chunk$set(fig.width = 7.2, fig.height = 12)
+library(armaVisualizer)
+```
+
+Before we start, we setup the variables needed for the demonstration.
+
+```{r setup}
+
+set.seed(42)
+n <- 20
+sigma <- 1.5
+b <- c(0.2, 2) # b1, b0
+
+# Data-generating process (DGP): ARMA(2,2)
+p_arma22 <- c(0.60, -0.30)
+q_arma22 <- c(0.45, -0.20)
+```
+
+This vignette uses one ARMA(2,2)-generated dataset, then compares five fitted models:
+
+1. LR baseline (`p = 0, q = 0`)
+2. ARMA(1,1) (`p = 1, q = 1`)
+3. MA(2) (`p = 0, q = 2`)
+4. AR(2) (`p = 2, q = 0`)
+5. ARMA(2,2) (`p = 2, q = 2`)
+
+## Generate ARMA(2,2) Errors and Dataset
+
+```{r generate-errors}
+e_arma22 <- generate_ARMA_errors(
+  n = n,
+  p = p_arma22,
+  q = q_arma22,
+  sigma = sigma
+)
+
+d_arma22 <- generate_ARMA_dataset(
+  n = n,
+  p = p_arma22,
+  q = q_arma22,
+  sigma = sigma,
+  b = b
+)
+```
+
+```{r plot-generated}
+par(mfrow = c(2, 1))
+plot_ARMA_series(e_arma22, series = "e")
+plot_ARMA_series(d_arma22, series = "y")
+```
+
+## Fit LR, ARMA(1,1), MA(2), AR(2), and ARMA(2,2)
+
+```{r fit-models}
+data_arma <- d_arma22
+
+fit_lr <- fit_ARMA(data_arma, p_order = 0, q_order = 0)
+
+fit_arma11 <- fit_ARMA(data_arma, p_order = 1, q_order = 1)
+
+fit_ma2 <- fit_ARMA(data_arma, p_order = 0, q_order = 2)
+
+fit_ar2 <- fit_ARMA(data_arma, p_order = 2, q_order = 0)
+
+fit_arma22 <- fit_ARMA(data_arma, p_order = 2, q_order = 2)
+
+# Compare innovation variances
+fit_lr$sigma2
+fit_arma11$sigma2
+fit_ma2$sigma2
+fit_ar2$sigma2
+fit_arma22$sigma2
+```
+
+## Compare Fitted Curves and Error Fits
+
+```{r plot-model-fits}
+par(mfrow = c(5, 2))
+
+plot_ARMA_series(data_arma, series = "y", fit = fit_lr)
+plot_ARMA_series(data_arma, series = "e", fit = fit_lr)
+
+plot_ARMA_series(data_arma, series = "y", fit = fit_arma11)
+plot_ARMA_series(data_arma, series = "e", fit = fit_arma11)
+
+plot_ARMA_series(data_arma, series = "y", fit = fit_ma2)
+plot_ARMA_series(data_arma, series = "e", fit = fit_ma2)
+
+plot_ARMA_series(data_arma, series = "y", fit = fit_ar2)
+plot_ARMA_series(data_arma, series = "e", fit = fit_ar2)
+
+plot_ARMA_series(data_arma, series = "y", fit = fit_arma22)
+plot_ARMA_series(data_arma, series = "e", fit = fit_arma22)
+```
+
+From these fit comparisons, the baseline LR model leaves clear serial structure in residuals.
+ARMA(1,1), MA(2), and AR(2) improve fit to different degrees, while ARMA(2,2)
+typically captures the DGP most closely.
+
+## Bibliography
+

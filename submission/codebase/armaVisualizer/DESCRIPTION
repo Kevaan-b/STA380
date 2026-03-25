@@ -1,13 +1,17 @@
 Package: armaVisualizer
-Title: What the Package Does (One Line, Title Case)
+Title: Interactive ARMA Time Series Explorer
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("STA380", "Team", , "sta380@example.com", role = c("aut", "cre"))
+Description: Simulate ARMA error processes and trend-plus-ARMA datasets,
+    fit ARMA models with conditional least squares, and visualize generated
+    and fitted series in a Shiny explorer for model comparison.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+Depends:
+    R (>= 3.5)
 Suggests: 
     knitr,
     rmarkdown,
