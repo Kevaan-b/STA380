@@ -88,24 +88,32 @@ ui <- page_navbar(
       style = "border-top: 1px solid #dee2e6; background: #f8f9fa; padding: 16px 24px;",
       fluidRow(
         column(3,
-               h6("Fitted Model", style = "font-weight:600; margin-bottom:10px;"),
-               numericInput("fit_p_order", tip_label("Fitted AR order", "The number of AR lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 1, min = 0),
-               numericInput("fit_q_order", tip_label("Fitted MA order", "The number of MA lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 2, min = 0)
+               wellPanel(
+                 h6("Fitted Model", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+                 numericInput("fit_p_order", tip_label("Fitted AR order", "The number of AR lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 1, min = 0),
+                 numericInput("fit_q_order", tip_label("Fitted MA order", "The number of MA lags in the model you are fitting to the data.","Enter a non-negative integer. Try matching the true order first, then experiment."),value = 2, min = 0)
+               )
         ),
         
         column(3,
-               h6("Options", style = "font-weight:600; margin-bottom:10px;"),
-               selectInput("series_type", "Series to display",
-                           choices = c("y (data)" = "y", "e (errors)" = "e"), selected = "y"),
-               checkboxInput("show_fit", "Show fitted overlay", value = TRUE),
-               actionButton("match_fit_order", "Use generated order",
-                            class = "btn-sm btn-outline-secondary w-100"),
+               wellPanel(
+                 h6("Options", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+                 selectInput("series_type", "Series to display",
+                             choices = c("y (data)" = "y", "e (errors)" = "e"), selected = "y"),
+                 checkboxInput("show_fit", "Show fitted overlay", value = TRUE),
+                 actionButton("match_fit_order", "Use generated order",
+                              class = "btn-sm btn-outline-secondary w-100")
+               )
         ),
         
         column(3,
-               h6("Current Setup", style = "font-weight:600; margin-bottom:10px;"),
-               uiOutput("model_summary")
-        )
+               wellPanel(
+                 h6("Current Setup", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+                 uiOutput("model_summary")
+               )
+        ),
+        
+        column(3, uiOutput("estimated_coef_summary"))
         
       )
     )
@@ -329,9 +337,11 @@ server <- function(input, output, session) {
   output$residual_plot <- renderPlot({
     d <- arma_data()
     fit <- arma_fit()
+    res <- residuals(fit)
+    keep <- is.finite(res)
     
-    plot(d$t,
-         residuals(fit),
+    plot(d$t[keep],
+         res[keep],
          type = "l",
          col = "steelblue",
          lwd = 2,
@@ -344,36 +354,16 @@ server <- function(input, output, session) {
   
   output$acf_plot <- renderPlot({
     fit <- arma_fit()
-    acf(residuals(fit), main = "ACF of Residuals")
+    res <- residuals(fit)
+    acf(res[is.finite(res)], main = "ACF of Residuals")
   })
 
   output$pacf_plot <- renderPlot({
     fit <- arma_fit()
-    pacf(residuals(fit), main = "PACF of Residuals")
+    res <- residuals(fit)
+    pacf(res[is.finite(res)], main = "PACF of Residuals")
   })
 
-  output$coef_plot <- renderPlot({
-    fit <- arma_fit()
-    coefs <- coef(fit)
-    keep <- !(names(coefs) %in% c("intercept", "data$t"))
-    coefs <- coefs[keep]
-    ses <- sqrt(diag(vcov(fit)))[keep] 
-    lcl <- coefs - 1.96 * ses
-    ucl <- coefs + 1.96 * ses
-
-    plot(1:length(coefs), coefs,
-         ylim = range(lcl, ucl),
-         pch = 16, xaxt = "n",
-         xlab = "", ylab = "Estimate",
-         main = "95% CI for ARMA Coefficients")
-
-    axis(1, at = 1:length(coefs), labels = names(coefs))
-    abline(h = 0, lty = 2, col = "gray40")
-
-    arrows(x0 = 1:length(coefs), y0 = lcl,
-           x1 = 1:length(coefs), y1 = ucl,
-           angle = 90, code = 3, length = 0.1, col = "steelblue")
-  })
 
   output$equation_panel <- renderUI({
       fluidRow(
@@ -384,7 +374,6 @@ server <- function(input, output, session) {
           tabPanel("Residuals",    plotOutput("residual_plot", height = "220px")),
           tabPanel("ACF",          plotOutput("acf_plot",      height = "220px")),
           tabPanel("PACF",         plotOutput("pacf_plot",     height = "220px")),
-          tabPanel("Coefficients", plotOutput("coef_plot",     height = "220px"))
         )
         ),
         column(
@@ -440,6 +429,70 @@ server <- function(input, output, session) {
       p(strong("Generated process:"), paste0(" ARMA(", length(p_coefs), ", ", length(q_coefs), ")")),
       p(strong("Fitted model:"), paste0(" ARMA(", input$fit_p_order, ", ", input$fit_q_order, ")")),
       p(strong("Series shown:"), if (input$series_type == "y") " observed data (y)" else " error process (e)")
+    )
+  })
+
+  output$estimated_coef_summary <- renderUI({
+    fit <- arma_fit()
+    coefs <- coef(fit)
+    coef_names <- names(coefs)
+    coef_fmt <- function(x) sprintf("%.4f", as.numeric(x))
+    to_subscript <- function(i) {
+      digit_map <- c("0" = "₀", "1" = "₁", "2" = "₂", "3" = "₃", "4" = "₄",
+                     "5" = "₅", "6" = "₆", "7" = "₇", "8" = "₈", "9" = "₉")
+      digits <- strsplit(as.character(i), "")[[1]]
+      paste(digit_map[digits], collapse = "")
+    }
+    format_lag_terms <- function(values, symbol) {
+      if (length(values) == 0) return("none")
+      pieces <- character(length(values))
+      for (k in seq_along(values)) {
+        pieces[k] <- paste0(symbol, to_subscript(k), " = ", coef_fmt(values[k]))
+      }
+      paste(pieces, collapse = ", ")
+    }
+
+    ar_idx <- grepl("^ar", coef_names)
+    ma_idx <- grepl("^ma", coef_names)
+    trend_idx <- coef_names %in% c("intercept", "t")
+
+    ar_text <- format_lag_terms(coefs[ar_idx], "φ")
+    ma_text <- format_lag_terms(coefs[ma_idx], "θ")
+
+    trend_text <- if (any(trend_idx)) {
+      trend_terms <- character(0)
+      if ("intercept" %in% coef_names) trend_terms <- c(trend_terms, paste0("b₀ = ", coef_fmt(coefs["intercept"])))
+      if ("t" %in% coef_names) trend_terms <- c(trend_terms, paste0("b₁ = ", coef_fmt(coefs["t"])))
+      paste(trend_terms, collapse = ", ")
+    } else {
+      "none"
+    }
+
+    sd_est <- suppressWarnings(sqrt(as.numeric(fit$sigma2)))
+    sd_text <- if (is.finite(sd_est)) {
+      paste0("σ̂ = ", coef_fmt(sd_est))
+    } else {
+      "σ̂ = NA"
+    }
+
+    scroll_field <- function(label, value_text) {
+      tagList(
+        tags$div(style = "font-weight:600; margin-bottom:6px;", label),
+        tags$div(
+          class = "form-control",
+          style = "height:auto; min-height:40px; white-space:nowrap; overflow-x:auto; overflow-y:hidden;",
+          value_text
+        )
+      )
+    }
+
+    wellPanel(
+      h6("Estimated Coefficients", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+      tags$div(style = "display:flex; flex-direction:column; gap:10px;",
+               scroll_field("AR coefficients (φᵢ)", ar_text),
+               scroll_field("MA coefficients (θᵢ)", ma_text),
+               scroll_field("Trend coefficients (b₀, b₁)", trend_text),
+               scroll_field("Innovation SD estimate (σ̂)", sd_text))
     )
   })
 }
