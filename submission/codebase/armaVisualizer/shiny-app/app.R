@@ -132,6 +132,7 @@ ui <- page_navbar(
         
         br(),
         h2("About This App"),
+        h1(strong("by 4kasters: Kevaan Chirag Buch, Kevin Joseph, Eshan Hussain, Will Wang, and Amin Amir"), style = "font-size: 18px; color: #555; margin-bottom: 24px;"),
         hr(),
         
         wellPanel(
@@ -144,16 +145,15 @@ ui <- page_navbar(
         
         wellPanel(
           h4("What to Look For"),
-          p("If the fitted model is doing a good job, the residual plot should not show a strong pattern over time."),
-          p("If the residuals still show visible structure, the fitted model may be missing part of the time-series behaviour.")
+          p("If the fitted model is doing a good job, the residual plot should not show a strong pattern over time. If the residuals still show visible structure, the fitted model may be missing part of the time-series behaviour.")
         ),
         
         wellPanel(
           h4("How to Use"),
           tags$ul(
-            tags$li("Set the fitted model order to match the true process — residuals should look like white noise."),
-            tags$li("Overfit by using a larger order than the true process — watch what changes."),
-            tags$li("Underfit by using a smaller order — see if residual structure remains."),
+            tags$li("Set the fitted model order to match the true process. Residuals should look like white noise."),
+            tags$li("Overfit by using a larger order than the true process. Watch what changes."),
+            tags$li("Underfit by using a smaller order. See if residual structure remains."),
             tags$li("Increase sample size to see how estimation improves with more data.")
           )
         ),
