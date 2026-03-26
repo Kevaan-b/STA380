@@ -72,12 +72,12 @@ ui <- page_navbar(
     });
   "))
   ),
-    
-
-  title = "Time Series Model Behaviour Explorer",
-
   
-
+  
+  title = "Time Series Model Behaviour Explorer",
+  
+  
+  
   # Main Explorer Page
   nav_panel(
     title = "Explorer",
@@ -120,7 +120,7 @@ ui <- page_navbar(
       )
     )
   ),
-
+  
   
   # About page
   nav_panel(
@@ -185,7 +185,7 @@ ui <- page_navbar(
     )
   )
 )
-  
+
 
 to_numeric <- function(x) {
   temp <- if (is.list(x)) x[[1]] else x
@@ -263,8 +263,8 @@ ma_equation <- function(coefs) {
 `%||%` <- function(a, b) if (!is.null(a)) a else b
 
 server <- function(input, output, session) {
-
-
+  
+  
   safe_coefs <- function(val) {
     if (is.null(val) || trimws(val) == "") return(numeric(0))
     tryCatch(
@@ -275,14 +275,14 @@ server <- function(input, output, session) {
   
   # Empty-check guard
   observeEvent(input$match_fit_order, {
-    req(input$p_val, input$q_val)
+    # req(input$p_val, input$q_val)
     p_len <- length(safe_coefs(input$p_val))
     q_len <- length(safe_coefs(input$q_val))
     
     updateNumericInput(session, "fit_p_order", value = p_len)
     updateNumericInput(session, "fit_q_order", value = q_len)
   })
-
+  
   
   arma_data <- reactive({
     req(input$n_val, input$sigma, input$b1_val, input$b0_val, input$seed)
@@ -390,68 +390,68 @@ server <- function(input, output, session) {
     res <- residuals(fit)
     acf(res[is.finite(res)], main = "ACF of Residuals")
   })
-
+  
   output$pacf_plot <- renderPlot({
     fit <- arma_fit()
     res <- residuals(fit)
     pacf(res[is.finite(res)], main = "PACF of Residuals")
   })
-
-
+  
+  
   output$equation_panel <- renderUI({
-      fluidRow(
-        column(
-          width = 8,
-          plotOutput("main_plot", height = "380px"),
-          tabsetPanel(
+    fluidRow(
+      column(
+        width = 8,
+        plotOutput("main_plot", height = "380px"),
+        tabsetPanel(
           tabPanel("Residuals",    plotOutput("residual_plot", height = "220px")),
           tabPanel("ACF",          plotOutput("acf_plot",      height = "220px")),
           tabPanel("PACF",         plotOutput("pacf_plot",     height = "220px")),
         )
-        ),
-        column(
-          width = 4,
-          uiOutput("dgp_equations"),  
-          
-          wellPanel(
-            h6("Data Generating Process Inputs", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
-            textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)",
-                                         "The autoregressive coefficients that control how past values influence the current value.",
-                                         "Enter numbers separated by commas, e.g. 0.60,0.30 for an AR(2) process."),
-                      value = isolate(input$p_val) %||% "0.60,0.30"),
-            textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
-                                         "The moving-average coefficients that control how past error influence the current value.",
-                                         "Enter numbers separated by commas, e.g. 0.45,0.20 for an MA(2) process."),
-                      value = isolate(input$q_val) %||% "0.45,0.20"),
-            fluidRow(
-              column(6, numericInput("n_val", tip_label("Sample size (n)",
-                                                        "The number of time points to simulate.",
-                                                        "Enter a positive integer. Larger values give smoother, more stable estimates."),
-                                     value = isolate(input$n_val) %||% 100, min = 10, step = 1)),
-              column(6, numericInput("sigma", tip_label("Innovation SD (\u03C3)",
-                                                        "The spread of the white noise innovations driving the ARMA process.",
-                                                        "Enter a positive number. Larger values mean noisier, more volatile series."),
-                                     value = isolate(input$sigma) %||% 1.5, min = 0, step = 0.01), )
-            ),
-            fluidRow(
-              column(6, numericInput("b1_val", tip_label("Trend slope (b\u2081)",
-                                                         "Controls how steeply the linear trend rises or falls over time.",
-                                                         "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
-                                     value = isolate(input$b1_val) %||% 0.2)),
-              column(6, numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
-                                                         "The starting value of the series at time t = 0.",
-                                                         "Enter any number to shift the entire series up or down."),
-                                     value = isolate(input$b0_val) %||% 2))
-            ),
-            numericInput("seed", tip_label("Random seed",
-                                           "Sets the random number generator so results are reproducible.",
-                                           "Enter any integer. Change it to get a different random draw with the same settings."),
-                         value = isolate(input$seed) %||% 0, min = 0, step = 1)
-          )
-          
+      ),
+      column(
+        width = 4,
+        uiOutput("dgp_equations"),  
+        
+        wellPanel(
+          h6("Data Generating Process Inputs", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
+          textInput("p_val", tip_label("AR coefficients (\u03C6\u1D62)",
+                                       "The autoregressive coefficients that control how past values influence the current value.",
+                                       "Enter numbers separated by commas, e.g. 0.60,0.30 for an AR(2) process."),
+                    value = isolate(input$p_val) %||% "0.60,0.30"),
+          textInput("q_val", tip_label("MA coefficients (\u03B8\u1D62)",
+                                       "The moving-average coefficients that control how past error influence the current value.",
+                                       "Enter numbers separated by commas, e.g. 0.45,0.20 for an MA(2) process."),
+                    value = isolate(input$q_val) %||% "0.45,0.20"),
+          fluidRow(
+            column(6, numericInput("n_val", tip_label("Sample size (n)",
+                                                      "The number of time points to simulate.",
+                                                      "Enter a positive integer. Larger values give smoother, more stable estimates."),
+                                   value = isolate(input$n_val) %||% 100, min = 10, step = 1)),
+            column(6, numericInput("sigma", tip_label("Innovation SD (\u03C3)",
+                                                      "The spread of the white noise innovations driving the ARMA process.",
+                                                      "Enter a positive number. Larger values mean noisier, more volatile series."),
+                                   value = isolate(input$sigma) %||% 1.5, min = 0, step = 0.01), )
+          ),
+          fluidRow(
+            column(6, numericInput("b1_val", tip_label("Trend slope (b\u2081)",
+                                                       "Controls how steeply the linear trend rises or falls over time.",
+                                                       "Enter any number. Use 0 for no trend, positive for upward, negative for downward."),
+                                   value = isolate(input$b1_val) %||% 0.2)),
+            column(6, numericInput("b0_val", tip_label("Trend intercept (b\u2080)",
+                                                       "The starting value of the series at time t = 0.",
+                                                       "Enter any number to shift the entire series up or down."),
+                                   value = isolate(input$b0_val) %||% 2))
+          ),
+          numericInput("seed", tip_label("Random seed",
+                                         "Sets the random number generator so results are reproducible.",
+                                         "Enter any integer. Change it to get a different random draw with the same settings."),
+                       value = isolate(input$seed) %||% 0, min = 0, step = 1)
         )
+        
       )
-    }
+    )
+  }
   )
   output$model_summary <- renderUI({
     req(input$p_val, input$q_val)
@@ -464,7 +464,7 @@ server <- function(input, output, session) {
       p(strong("Series shown:"), if (input$series_type == "y") " observed data (y)" else " error process (e)")
     )
   })
-
+  
   output$estimated_coef_summary <- renderUI({
     fit <- arma_fit()
     coefs <- coef(fit)
@@ -484,14 +484,14 @@ server <- function(input, output, session) {
       }
       paste(pieces, collapse = ", ")
     }
-
+    
     ar_idx <- grepl("^ar", coef_names)
     ma_idx <- grepl("^ma", coef_names)
     trend_idx <- coef_names %in% c("intercept", "t")
-
+    
     ar_text <- format_lag_terms(coefs[ar_idx], "φ")
     ma_text <- format_lag_terms(coefs[ma_idx], "θ")
-
+    
     trend_text <- if (any(trend_idx)) {
       trend_terms <- character(0)
       if ("intercept" %in% coef_names) trend_terms <- c(trend_terms, paste0("b₀ = ", coef_fmt(coefs["intercept"])))
@@ -500,14 +500,14 @@ server <- function(input, output, session) {
     } else {
       "none"
     }
-
+    
     sd_est <- suppressWarnings(sqrt(as.numeric(fit$sigma2)))
     sd_text <- if (is.finite(sd_est)) {
       paste0("σ̂ = ", coef_fmt(sd_est))
     } else {
       "σ̂ = NA"
     }
-
+    
     scroll_field <- function(label, value_text) {
       tagList(
         tags$div(style = "font-weight:600; margin-bottom:6px;", label),
@@ -518,7 +518,7 @@ server <- function(input, output, session) {
         )
       )
     }
-
+    
     wellPanel(
       h6("Estimated Coefficients", style = "text-transform: uppercase; font-size: 11px; color: #888; font-weight: 600;"),
       tags$div(style = "display:flex; flex-direction:column; gap:10px;",
@@ -531,5 +531,5 @@ server <- function(input, output, session) {
 }
 
 
-  
+
 shinyApp(ui = ui, server = server)
