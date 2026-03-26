@@ -5,7 +5,28 @@
 The R package is located at the repository root.
 
 ## Updates
-Presently we are using ARMA for fit. Due to time constraint regarding this checkpoint, there was no time to add MLE estimates, but it will be implemented by the final submission.
+
+Implemented features since March 18:
+
+1. **R Package Restructuring** - Converted to proper R package structure with DESCRIPTION, NAMESPACE, LICENSE, .Rbuildignore
+
+2. **CLS Estimation** - Implemented Conditional Least Squares estimation using mini-batch SGD with momentum optimization
+
+3. **Shiny App Enhancements**:
+   - Convergence status indicator (button showing if model converges)
+   - PACF/ACF plots
+   - Coefficient plots
+   - UI layout improvements
+   - About page
+   - Parameter tuning and estimated params display
+
+4. **Documentation** - Added manual pages for all exported functions
+
+5. **Vignette** - Created comprehensive ARMA vignette
+
+6. **Test Coverage** - Updated testthat tests
+
+7. **Code Cleanup** - Removed redundant estimate_ARMA_errors function
 
 ## accessing the website via RPosit link
 https://019d0430-b246-4443-c144-9437cec4e883.share.connect.posit.cloud/
