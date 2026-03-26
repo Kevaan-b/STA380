@@ -1,27 +1,44 @@
 Package: armaVisualizer
 Title: Interactive ARMA Time Series Explorer
 Version: 0.0.0.9000
-Authors@R: 
-    person("Kevaan", "Buch", , "kevaan.buch@mail.utoronto.ca", role = "aur")
-    person("Kevin", "Joseph", , "kevinj.joseph@mail.utoronto.ca", role = "aur")
-    person("Amin", "Amir", , "amin.amir@mail.utoronto.ca", role = "aut")
-    person("Eshan", "Hussain", , "eshan.hussain@utoronto.ca", role = "aut")
-    person("Will", "Wang", "lieyanxuegao.wang@mail.utoronto.ca", role = "aut")
-Description: This app simulates time series data with a linear trend and ARMA errors,
-letting users explore how different model choices affect fit. You can set the true data-generating process,
-fit ARMA(p, q) models, and evaluate performance through plots and residual diagnostics.
-A good model yields residuals with no visible pattern. The app supports experimenting with overfitting,
-underfitting, and sample size, while displaying estimated coefficients and stationarity checks to better understand ARMA behavior.
-
-
+Authors@R: c(
+    person(given = "Kevaan", family = "Buch",
+           email = "kevaan.buch@mail.utoronto.ca", role = c("aut", "cre")),
+    person(given = "Kevin", family = "Joseph",
+           email = "kevinj.joseph@mail.utoronto.ca", role = "aut"),
+    person(given = "Amin", family = "Amir",
+           email = "amin.amir@mail.utoronto.ca", role = "aut"),
+    person(given = "Eshan", family = "Hussain",
+           email = "eshan.hussain@utoronto.ca", role = "aut"),
+    person(given = "Will", family = "Wang",
+           email = "lieyanxuegao.wang@mail.utoronto.ca", role = "aut")
+    )
+Author: Kevaan Buch [aut, cre],
+    Kevin Joseph [aut],
+    Amin Amir [aut],
+    Eshan Hussain [aut],
+    Will Wang [aut]
+Maintainer: Kevaan Buch <kevaan.buch@mail.utoronto.ca>
+Description: This app simulates time series data with a linear trend and ARMA
+    errors, letting users explore how different model choices affect fit. You
+    can set the true data-generating process, fit ARMA(p, q) models, and
+    evaluate performance through plots and residual diagnostics. A good model
+    yields residuals with no visible pattern. The app supports experimenting
+    with overfitting, underfitting, and sample size while displaying estimated
+    coefficients and stationarity checks to better understand ARMA behavior.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends:
     R (>= 3.5)
+Imports:
+    graphics,
+    stats,
+    utils
 Suggests: 
     knitr,
+    pkgload,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr

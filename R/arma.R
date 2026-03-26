@@ -375,7 +375,8 @@ fit_cls_sgd_momentum <- function(y, t_vec, p, q,
 #' @param p_order Integer AR order.
 #' @param q_order Integer MA order.
 #'
-#' @return A fitted object with residuals/fitted values and ARMA metadata.
+#' @return Object of class `ARMA_CLS_fit` with components `coef`, `sigma2`,
+#'   `arma`, `residuals`, and `fitted.values`.
 #'
 #' @export
 fit_ARMA <- function(data, p_order = 0, q_order = 0) {
@@ -455,10 +456,14 @@ fit_ARMA <- function(data, p_order = 0, q_order = 0) {
   fit
 }
 
+#' @method coef ARMA_CLS_fit
+#' @export
 coef.ARMA_CLS_fit <- function(object, ...) {
   object$coef
 }
 
+#' @method residuals ARMA_CLS_fit
+#' @export
 residuals.ARMA_CLS_fit <- function(object, ...) {
   object$residuals
 }

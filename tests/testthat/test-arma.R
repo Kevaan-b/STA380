@@ -140,29 +140,28 @@ test_that("cls_loss and align_fitted_length handle indexing and boundaries", {
   expect_equal(armaVisualizer:::align_fitted_length(1:7, 5), c(3, 4, 5, 6, 7))
 })
 
-test_that("estimate_ARMA_errors pads/trims and validates inputs", {
-  fake_fit_long <- structure(list(residuals = 1:10), class = "ARMA_CLS_fit")
-  fake_fit_short <- structure(list(residuals = 1:3), class = "ARMA_CLS_fit")
-  fake_fit_empty <- structure(list(residuals = numeric(0)), class = "ARMA_CLS_fit")
-
-  expect_equal(
-    armaVisualizer:::estimate_ARMA_errors(data = data.frame(y = 1:6), fit = fake_fit_long),
-    5:10
+test_that("fit extractors validate inputs and extracted values", {
+  fake_fit <- structure(
+    list(residuals = 1:4, fitted.values = 5:8),
+    class = "ARMA_CLS_fit"
+  )
+  fake_fit_empty <- structure(
+    list(residuals = numeric(0), fitted.values = numeric(0)),
+    class = "ARMA_CLS_fit"
   )
 
-  expect_equal(
-    armaVisualizer:::estimate_ARMA_errors(data = 1:5, fit = fake_fit_short),
-    c(NA, NA, 1, 2, 3)
-  )
+  expect_equal(armaVisualizer:::extract_fit_residuals(fake_fit), 1:4)
+  expect_equal(armaVisualizer:::extract_fit_fitted_values(fake_fit), 5:8)
 
-  expect_error(armaVisualizer:::estimate_ARMA_errors(data = 1:5, fit = NULL), "`fit` must be provided")
+  expect_error(armaVisualizer:::extract_fit_residuals(NULL), "`fit` must be provided")
+  expect_error(armaVisualizer:::extract_fit_fitted_values(NULL), "`fit` must be provided")
   expect_error(
-    armaVisualizer:::estimate_ARMA_errors(data = data.frame(t = 1:5), fit = fake_fit_long),
-    "must include a `y` column"
-  )
-  expect_error(
-    armaVisualizer:::estimate_ARMA_errors(data = 1:5, fit = fake_fit_empty),
+    armaVisualizer:::extract_fit_residuals(fake_fit_empty),
     "Could not extract residuals"
+  )
+  expect_error(
+    armaVisualizer:::extract_fit_fitted_values(fake_fit_empty),
+    "Could not extract `fitted.values`"
   )
 })
 

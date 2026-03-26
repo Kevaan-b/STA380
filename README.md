@@ -45,5 +45,6 @@ Then type the corresponding address in your web browser to access the RShiny web
 In the repository root:
 
 ```r
-devtools::test()
+pkgload::load_all(".")
+testthat::test_dir("tests/testthat")
 ```
