@@ -1,8 +1,7 @@
-**Generative AI Statement:** Used generative AI to help with parts of the website design, wording, and some code cleanup while building the Shiny app.
 
 ---
 title: "ARMA vignette"
-output: rmarkdown::html_vignette
+output: rmarkdown::html_document
 vignette: >
   %\VignetteIndexEntry{ARMA vignette}
   %\VignetteEngine{knitr::rmarkdown}
@@ -10,6 +9,9 @@ vignette: >
 bibliography: bibliography.bib
 nocite: "@*"
 ---
+
+**Generative AI Statement:** Used generative AI to help with parts of the website design, wording, and some code cleanup while building the Shiny app.
+
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -25,22 +27,40 @@ Before we start, we setup the variables needed for the demonstration.
 ```{r setup}
 
 set.seed(42)
-n <- 100
+n <- 20
 sigma <- 1.5
 b <- c(0.2, 2) # b1, b0
 
 # Data-generating process (DGP): ARMA(2,2)
-p_arma22 <- c(0.60, 0.30)
-q_arma22 <- c(0.45, 0.20)
+p_arma22 <- c(0.60, -0.30)
+q_arma22 <- c(0.45, -0.20)
 ```
 
-This vignette uses one ARMA(2,2)-generated dataset, then compares five fitted models:
+This vignette uses one ARMA(2,2)-generated dataset. It demonstrates the diagnostic tools available in the app: stationary checking, model fitting, residual analysis, ACF/PACF plots, and coefficient inspection. It compares five fitted models:
 
 1. LR baseline (`p = 0, q = 0`)
 2. ARMA(1,1) (`p = 1, q = 1`)
 3. MA(2) (`p = 0, q = 2`)
 4. AR(2) (`p = 2, q = 0`)
 5. ARMA(2,2) (`p = 2, q = 2`)
+
+## Stationarity and Characteristic Roots
+We say an AR process is "stationary" when all roots of its characteristic polynomial lie **outside** the unit circle. Equivalently, their modulus must be greater than 1.
+```{r stationarity}
+check_stationarity <- function(ar_coefs) {
+  if (length(ar_coefs) == 0)
+    return(list(stationary = TRUE, roots = numeric(0)))
+  roots <- Mod(polyroot(c(1, -ar_coefs)))
+  list(stationary = all(roots > 1), roots = roots)
+}
+
+result <- check_stationarity(p_arma22)
+cat("Stationary:", result$stationary, "\n")
+cat("Characteristic root moduli:", round(result$roots, 4), "\n")
+```
+
+As you can see, both roots exceed 1. Therefore, we can say that ARMA(2,2) is stationary. In the app, a green badge confirms stationary and displalys the root values live as you change the AR coefficients. If a red badge appears, then you have entered coefficients that push a root inside the unit circle.
+
 
 ## Generate ARMA(2,2) Errors and Dataset
 
@@ -90,11 +110,74 @@ fit_ar2$sigma2
 fit_arma22$sigma2
 ```
 
-## Compare Fitted Curves and Error Fits
+## Estimated Coefficients
+The app's **Estimated Coefficients** panel displays $\hat{\varphi}_i$, $\hat{\theta}_i$, $\hat{b}_0$, $\hat{b}_1$, and $\hat{\sigma}$ for the currently fitted model. Here we inspect them manually for each model.
 
-For fitted overlays, `plot_ARMA_series()` uses in-sample outputs from each
-model fit: `fit$fitted.values` for `series = "y"` and `residuals(fit)` for
-`series = "e"`.
+```{r estimated-coefs}
+extract_coefs <- function(fit, label) {
+  coefs <- coef(fit)
+  sd_est <- sqrt(fit$sigma2)
+  cat("---", label, "---\n")
+  print(round(coefs, 4))
+  cat("sigma:", round(sd_est, 4), "\n\n")
+}
+
+extract_coefs(fit_lr,     "LR baseline  (p=0, q=0)")
+extract_coefs(fit_arma11, "ARMA(1,1)    (p=1, q=1)")
+extract_coefs(fit_ma2,    "MA(2)        (p=0, q=2)")
+extract_coefs(fit_ar2,    "AR(2)        (p=2, q=0)")
+extract_coefs(fit_arma22, "ARMA(2,2)    (p=2, q=2)")
+```
+
+Notice that ARMA(2,2) recovers coefficients closest to the true values ($\varphi_1 = 0.60$, $\varphi_2 = -0.30$, $\theta_1 = 0.45$, $\theta_2 = -0.20$).
+
+## Residual Analysis
+
+Good model fit means residuals should resemble white noise. No visible structure over time and no significant autocorrelation.
+
+```{r residual-plots, fig.height = 10}
+par(mfrow = c(5, 1))
+
+plot_residuals <- function(fit, label) {
+  res  <- residuals(fit)
+  keep <- is.finite(res)
+  plot(which(keep), res[keep], type = "l", col = "steelblue", lwd = 2,
+       xlab = "Time", ylab = "Residual", main = paste("Residuals —", label))
+  abline(h = 0, lty = 2, col = "gray40")
+}
+
+plot_residuals(fit_lr,     "LR baseline")
+plot_residuals(fit_arma11, "ARMA(1,1)")
+plot_residuals(fit_ma2,    "MA(2)")
+plot_residuals(fit_ar2,    "AR(2)")
+plot_residuals(fit_arma22, "ARMA(2,2)")
+```
+
+The LR baseline shows clear serial structure. The ARMA(2,2) residuals look much closer to white noise. In the app the **Residuals** tab updates live whenever you change either the generating process or the fitted model order.
+
+
+## ACF and PACF of Residuals
+
+The ACF and PACF are the primary tools for diagnosing whether serial correlation remains in the residuals after fitting.
+
+```{r acf-pacf, fig.height = 8}
+par(mfrow = c(2, 2))
+
+plot_acf_pacf <- function(fit, label) {
+  res  <- residuals(fit)
+  keep <- is.finite(res)
+  acf( res[keep], main = paste("ACF —",  label))
+  pacf(res[keep], main = paste("PACF —", label))
+}
+
+plot_acf_pacf(fit_lr,     "LR baseline")
+plot_acf_pacf(fit_arma22, "ARMA(2,2)")
+```
+
+For the LR model, several ACF lags exceed the confidence bands, confirming leftover autocorrelation. The ARMA(2,2) ACF and PACF stay within the bands, consistent with white-noise residuals. The app's **ACF** and **PACF** tabs render these plots dynamically so you can immediately see the impact of under- or over-fitting.
+
+
+## Compare Fitted Curves and Error Fits
 
 ```{r plot-model-fits}
 par(mfrow = c(5, 2))
@@ -120,3 +203,4 @@ ARMA(1,1), MA(2), and AR(2) improve fit to different degrees, while ARMA(2,2)
 typically captures the DGP most closely.
 
 ## Bibliography
+<div id="refs"></div>
