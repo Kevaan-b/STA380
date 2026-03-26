@@ -25,13 +25,13 @@ Before we start, we setup the variables needed for the demonstration.
 ```{r setup}
 
 set.seed(42)
-n <- 20
+n <- 100
 sigma <- 1.5
 b <- c(0.2, 2) # b1, b0
 
 # Data-generating process (DGP): ARMA(2,2)
-p_arma22 <- c(0.60, -0.30)
-q_arma22 <- c(0.45, -0.20)
+p_arma22 <- c(0.60, 0.30)
+q_arma22 <- c(0.45, 0.20)
 ```
 
 This vignette uses one ARMA(2,2)-generated dataset, then compares five fitted models:
@@ -92,6 +92,10 @@ fit_arma22$sigma2
 
 ## Compare Fitted Curves and Error Fits
 
+For fitted overlays, `plot_ARMA_series()` uses in-sample outputs from each
+model fit: `fit$fitted.values` for `series = "y"` and `residuals(fit)` for
+`series = "e"`.
+
 ```{r plot-model-fits}
 par(mfrow = c(5, 2))
 
@@ -116,4 +120,3 @@ ARMA(1,1), MA(2), and AR(2) improve fit to different degrees, while ARMA(2,2)
 typically captures the DGP most closely.
 
 ## Bibliography
-

@@ -19,40 +19,36 @@
 #' @importFrom utils tail
 #' @export
 generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, seed = NULL) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
+  if (!is.null(seed)) set.seed(seed)
 
   burnin <- 50
   total_n <- n + burnin
   p_order <- length(p)
   q_order <- length(q)
+
   z <- rnorm(total_n, mean = 0, sd = sigma)
   e <- z
 
-  # Build e_t recursively using AR and MA lag terms.
-  for (t in seq_len(total_n)) {
-    for (i in seq_len(p_order)) {
-      if (t - i > 0) {
-        e[t] <- e[t] + p[i] * e[t - i]
+  for (tt in seq_len(total_n)) {
+    if (p_order > 0) {
+      for (i in seq_len(p_order)) {
+        if (tt - i > 0) e[tt] <- e[tt] + p[i] * e[tt - i]
       }
     }
-    for (j in seq_len(q_order)) {
-      if (t - j > 0) {
-        e[t] <- e[t] + q[j] * z[t - j]
+    if (q_order > 0) {
+      for (j in seq_len(q_order)) {
+        if (tt - j > 0) e[tt] <- e[tt] + q[j] * z[tt - j]
       }
     }
   }
 
-  e_out <- tail(e, n)
-  t_out <- seq_len(n)
   p_text <- if (p_order > 0) paste(round(p, 4), collapse = ", ") else "none"
   q_text <- if (q_order > 0) paste(round(q, 4), collapse = ", ") else "none"
   arma_label <- paste0("ARMA(", p_order, ", ", q_order, ") | p=[", p_text, "] | q=[", q_text, "]")
 
   data.frame(
-    t = t_out,
-    e = e_out,
+    t = seq_len(n),
+    e = tail(e, n),
     p_order = rep(p_order, n),
     q_order = rep(q_order, n),
     arma_label = rep(arma_label, n),
@@ -80,24 +76,14 @@ generate_ARMA_errors <- function(n, p = numeric(0), q = numeric(0), sigma = 1, s
 #'
 #' @export
 generate_ARMA_dataset <- function(n, p = numeric(0), q = numeric(0), sigma = 1, b = c(0, 0), seed = NULL) {
-  errors_df <- generate_ARMA_errors(
-    n = n,
-    p = p,
-    q = q,
-    sigma = sigma,
-    seed = seed
-  )
-
+  errors_df <- generate_ARMA_errors(n = n, p = p, q = q, sigma = sigma, seed = seed)
   t <- errors_df$t
-  e_t <- errors_df$e
-  b1 <- b[1]
-  b0 <- b[2]
-  y_t <- b1 * t + b0 + e_t
+  y_t <- b[1] * t + b[2] + errors_df$e
 
   data.frame(
     t = t,
     y = y_t,
-    e = e_t,
+    e = errors_df$e,
     p_order = errors_df$p_order,
     q_order = errors_df$q_order,
     arma_label = errors_df$arma_label,
@@ -105,345 +91,284 @@ generate_ARMA_dataset <- function(n, p = numeric(0), q = numeric(0), sigma = 1, 
   )
 }
 
+#' Validate Core ARMA Inputs
+#'
+#' @param y Numeric response vector.
+#' @param t_vec Numeric trend covariate vector.
+#' @param p Integer AR order.
+#' @param q Integer MA order.
+#' @param par Optional numeric parameter vector.
+#'
+#' @return List with normalized input values and dimensions.
+validate_arma_inputs <- function(y, t_vec, p, q, par = NULL) {
+  y <- as.numeric(y)
+  t_vec <- as.numeric(t_vec)
+  p <- max(0, as.integer(p))
+  q <- max(0, as.integer(q))
 
+  if (length(y) == 0) stop("Input series must have positive length.")
+  if (length(t_vec) != length(y)) stop("`t_vec` length must match `y` length.")
+  if (!is.null(par) && length(par) != (2 + p + q)) stop("Invalid parameter length.")
 
-#' Create a lag matrix for recursive AR computations
-#'
-#' @description Builds a matrix where each row contains lagged values
-#' `x_{t-1}, ..., x_{t-p}` for times `t = start_t, ..., end_t`.
-#'
-#' @param x Numeric input series.
-#' @param p Integer number of lags.
-#' @param start_t Integer first time index.
-#' @param end_t Integer last time index.
-#'
-#' @return Numeric matrix with `p` lag columns (or zero columns when `p = 0`).
-#'
-#' @keywords internal
-make_lag_matrix <- function(x, p, start_t, end_t) {
-  if (p == 0L) {
-    return(matrix(0, nrow = end_t - start_t + 1L, ncol = 0L))
-  }
-  
-  # Build row-wise lag blocks used by AR terms.
-  out <- matrix(0, nrow = end_t - start_t + 1L, ncol = p)
-  for (s in seq_len(nrow(out))) {
-    t <- start_t + s - 1L
-    out[s, ] <- x[(t - 1L):(t - p)]
-  }
-  out
+  list(y = y, t_vec = t_vec, p = p, q = q, n = length(y), m = max(p, q))
 }
 
-#' Compute ARMA residuals recursively
+#' Split Joint Trend + ARMA Parameter Vector
 #'
-#' @description Computes conditional residuals for an ARMA model by applying
-#' AR and MA lag recursions across the series.
-#'
-#' @param x Numeric input series.
-#' @param phi Numeric AR coefficient vector.
-#' @param theta Numeric MA coefficient vector.
-#'
-#' @return Numeric vector of residuals with the same length as `x`.
-#'
-#' @keywords internal
-arma_residuals <- function(x, phi, theta) {
-  n <- length(x)
-  p <- length(phi)
-  q <- length(theta)
-  m <- max(p, q)
-  
-  # Residual holder initialized to zero for early lag positions.
-  ehat <- numeric(n)
-  
-  if (n <= m) return(ehat)
-  
-  # Recursive one-step residual update.
-  for (t in (m + 1L):n) {
-    ar_part <- if (p > 0L) sum(phi * x[(t - 1L):(t - p)]) else 0
-    ma_part <- if (q > 0L) sum(theta * ehat[(t - 1L):(t - q)]) else 0
-    ehat[t] <- x[t] - ar_part - ma_part
-  }
-  
-  ehat
-}
-
-#' CLS objective for ARMA coefficients
-#'
-#' @description Evaluates conditional least squares loss for ARMA parameters.
-#'
-#' @param par Numeric parameter vector containing AR then MA coefficients.
-#' @param x Numeric input series.
+#' @param par Numeric parameter vector.
 #' @param p Integer AR order.
 #' @param q Integer MA order.
 #'
-#' @return Numeric scalar mean squared residual loss.
-#'
-#' @keywords internal
-cls_loss_arma <- function(par, x, p, q) {
-  phi <- if (p > 0L) par[1:p] else numeric(0)
-  theta <- if (q > 0L) par[(p + 1L):(p + q)] else numeric(0)
-  
-  # Compute residual path and evaluate post-lag MSE.
-  ehat <- arma_residuals(x, phi, theta)
-  m <- max(p, q)
-  
-  if (length(x) <= m) return(Inf)
-  mean(ehat[(m + 1L):length(x)]^2)
+#' @return List with trend, AR, and MA components.
+split_joint_par <- function(par, p, q) {
+  validate_arma_inputs(y = 0, t_vec = 0, p = p, q = q, par = par)
+  list(
+    intercept = unname(par[1]),
+    slope = unname(par[2]),
+    phi = if (p > 0) unname(par[3:(2 + p)]) else numeric(0),
+    theta = if (q > 0) unname(par[(3 + p):(2 + p + q)]) else numeric(0)
+  )
 }
 
-#' Compute block CLS loss and gradient
+#' Build ARMA Recursive State
 #'
-#' @description Computes mini-batch loss and analytic gradient for ARMA
-#' conditional least squares using a warmup window for recursion stability.
+#' @param y Numeric response vector.
+#' @param t_vec Numeric trend covariate vector.
+#' @param par Numeric parameter vector.
+#' @param p Integer AR order.
+#' @param q Integer MA order.
 #'
-#' @param x Numeric input series.
-#' @param phi Numeric AR coefficient vector.
-#' @param theta Numeric MA coefficient vector.
-#' @param batch_start Integer first index of the optimization batch.
-#' @param batch_end Integer last index of the optimization batch.
-#' @param warmup Integer number of points used before `batch_start` for
-#' recursion warmup.
-#'
-#' @return List with scalar `loss` and numeric vector `grad`.
-#'
-#' @keywords internal
-cls_grad_block_vec <- function(x, phi, theta, batch_start, batch_end, warmup = 40L) {
+#' @return List with trend, residual, and fitted-value state.
+build_arma_state <- function(y, t_vec, par, p, q) {
+  meta <- validate_arma_inputs(y, t_vec, p, q, par = par)
+  n <- meta$n
+  m <- meta$m
+  parts <- split_joint_par(par, p, q)
+
+  trend_hat <- parts$intercept + parts$slope * t_vec
+  x <- y - trend_hat
+  ehat <- numeric(n)
+  fitted_arma <- rep(NA_real_, n)
+
+  if (n > m) {
+    for (tt in (m + 1):n) {
+      ar_part <- if (p > 0) sum(parts$phi * x[(tt - 1):(tt - p)]) else 0
+      ma_part <- if (q > 0) sum(parts$theta * ehat[(tt - 1):(tt - q)]) else 0
+      fitted_arma[tt] <- ar_part + ma_part
+      ehat[tt] <- x[tt] - fitted_arma[tt]
+    }
+  }
+
+  list(
+    trend_hat = trend_hat,
+    x = x,
+    ehat = ehat,
+    fitted_arma = fitted_arma,
+    fitted_full = trend_hat + fitted_arma,
+    resid_full = y - (trend_hat + fitted_arma),
+    n = n,
+    m = m
+  )
+}
+
+arma_residuals <- function(x, phi, theta) {
   p <- length(phi)
   q <- length(theta)
+  par <- c(0, 0, phi, theta)
+  build_arma_state(y = as.numeric(x), t_vec = rep(0, length(x)), par = par, p = p, q = q)$ehat
+}
+
+#' Compute CLS Loss for Joint Trend + ARMA
+#'
+#' @param par Numeric parameter vector.
+#' @param y Numeric response vector.
+#' @param t_vec Numeric trend covariate vector.
+#' @param p Integer AR order.
+#' @param q Integer MA order.
+#' @param idx Optional index vector to evaluate mini-batch loss.
+#'
+#' @return Scalar CLS loss.
+cls_loss <- function(par, y, t_vec, p, q, idx = NULL) {
+  state <- build_arma_state(y = y, t_vec = t_vec, par = par, p = p, q = q)
+  n <- state$n
+  m <- state$m
+
+  if (n <= m) return(Inf)
+
+  if (is.null(idx)) {
+    use_idx <- (m + 1):n
+  } else {
+    use_idx <- as.integer(idx)
+    use_idx <- use_idx[use_idx >= (m + 1) & use_idx <= n]
+    if (length(use_idx) == 0) return(Inf)
+  }
+
+  resid <- state$ehat[use_idx]
+  if (!all(is.finite(resid))) return(Inf)
+  mean(resid^2)
+}
+
+cls_loss_arma <- function(par, y, t_vec, p, q) {
+  cls_loss(par = par, y = y, t_vec = t_vec, p = p, q = q)
+}
+
+#' Compute One Mini-batch Gradient for Joint Trend + ARMA
+#'
+#' @param y Numeric response vector.
+#' @param t_vec Numeric trend covariate vector.
+#' @param par Numeric parameter vector.
+#' @param p Integer AR order.
+#' @param q Integer MA order.
+#' @param batch_start Integer first batch index.
+#' @param batch_end Integer last batch index.
+#' @param warmup Integer warmup width for recursion.
+#'
+#' @return List with `grad`.
+cls_grad_block_vec <- function(y, t_vec, par, p, q, batch_start, batch_end, warmup = 20) {
+  parts <- split_joint_par(par, p, q)
   m <- max(p, q)
-  
-  if (batch_start < m + 1L) stop("batch_start must be at least max(p, q) + 1")
-  if (batch_end > length(x)) stop("batch_end cannot exceed length(x)")
-  if (batch_start > batch_end) stop("batch_start must be <= batch_end")
-  
-  start_t <- max(m + 1L, batch_start - warmup)
-  end_t   <- batch_end
-  Tlen    <- end_t - start_t + 1L
-  
-  # Local state for residual recursion and derivative recursion.
-  ehat   <- numeric(Tlen)
-  dphi   <- matrix(0, nrow = Tlen, ncol = p)
+  start_t <- max(m + 1, batch_start - warmup)
+  end_t <- batch_end
+  t_idx <- start_t:end_t
+  Tlen <- length(t_idx)
+
+  trend_hat <- parts$intercept + parts$slope * t_vec
+  x <- y - trend_hat
+
+  ehat <- numeric(Tlen)
+  d_intercept <- numeric(Tlen)
+  d_slope <- numeric(Tlen)
+  dphi <- matrix(0, nrow = Tlen, ncol = p)
   dtheta <- matrix(0, nrow = Tlen, ncol = q)
-  
-  Xlag <- make_lag_matrix(x, p, start_t, end_t)
-  
-  # Forward pass over warmup + batch region.
+
   for (s in seq_len(Tlen)) {
-    ar_part <- if (p > 0L) sum(phi * Xlag[s, ]) else 0
-    
-    ma_lags <- if (q > 0L) {
+    tt <- t_idx[s]
+    ar_lags <- if (p > 0) x[(tt - 1):(tt - p)] else numeric(0)
+    ar_part <- if (p > 0) sum(parts$phi * ar_lags) else 0
+
+    ma_lags <- if (q > 0) {
       vapply(seq_len(q), function(j) {
-        prev_s <- s - j
-        if (prev_s >= 1L) ehat[prev_s] else 0
+        prev <- s - j
+        if (prev >= 1) ehat[prev] else 0
       }, numeric(1))
     } else {
       numeric(0)
     }
-    
-    ma_part <- if (q > 0L) sum(theta * ma_lags) else 0
-    ehat[s] <- x[start_t + s - 1L] - ar_part - ma_part
-    
-    if (p > 0L) {
-      row_phi <- -Xlag[s, ]
-      if (q > 0L) {
+    ma_part <- if (q > 0) sum(parts$theta * ma_lags) else 0
+    ehat[s] <- x[tt] - ar_part - ma_part
+
+    row_intercept <- -1 + if (p > 0) sum(parts$phi) else 0
+    if (q > 0) {
+      for (j in seq_len(q)) {
+        prev <- s - j
+        if (prev >= 1) row_intercept <- row_intercept - parts$theta[j] * d_intercept[prev]
+      }
+    }
+    d_intercept[s] <- row_intercept
+
+    row_slope <- -t_vec[tt] + if (p > 0) sum(parts$phi * t_vec[(tt - 1):(tt - p)]) else 0
+    if (q > 0) {
+      for (j in seq_len(q)) {
+        prev <- s - j
+        if (prev >= 1) row_slope <- row_slope - parts$theta[j] * d_slope[prev]
+      }
+    }
+    d_slope[s] <- row_slope
+
+    if (p > 0) {
+      row_phi <- -ar_lags
+      if (q > 0) {
         for (j in seq_len(q)) {
-          prev_s <- s - j
-          if (prev_s >= 1L) row_phi <- row_phi - theta[j] * dphi[prev_s, ]
+          prev <- s - j
+          if (prev >= 1) row_phi <- row_phi - parts$theta[j] * dphi[prev, ]
         }
       }
       dphi[s, ] <- row_phi
     }
-    
-    if (q > 0L) {
+
+    if (q > 0) {
       row_theta <- -ma_lags
       for (j in seq_len(q)) {
-        prev_s <- s - j
-        if (prev_s >= 1L) row_theta <- row_theta - theta[j] * dtheta[prev_s, ]
+        prev <- s - j
+        if (prev >= 1) row_theta <- row_theta - parts$theta[j] * dtheta[prev, ]
       }
       dtheta[s, ] <- row_theta
     }
   }
-  
-  # Restrict loss/gradient to the requested batch indices.
-  idx <- (batch_start:batch_end) - start_t + 1L
+
+  idx <- (batch_start:batch_end) - start_t + 1
   resid <- ehat[idx]
   n_batch <- length(idx)
-  
-  grad_phi <- if (p > 0L) {
-    (2 / n_batch) * colSums(dphi[idx, , drop = FALSE] * resid)
-  } else {
-    numeric(0)
-  }
-  
-  grad_theta <- if (q > 0L) {
-    (2 / n_batch) * colSums(dtheta[idx, , drop = FALSE] * resid)
-  } else {
-    numeric(0)
-  }
-  
-  list(
-    loss = mean(resid^2),
-    grad = c(grad_phi, grad_theta)
+
+  grad <- c(
+    (2 / n_batch) * sum(d_intercept[idx] * resid),
+    (2 / n_batch) * sum(d_slope[idx] * resid),
+    if (p > 0) (2 / n_batch) * colSums(dphi[idx, , drop = FALSE] * resid) else numeric(0),
+    if (q > 0) (2 / n_batch) * colSums(dtheta[idx, , drop = FALSE] * resid) else numeric(0)
   )
+
+  list(grad = grad)
 }
 
-#' Fit ARMA parameters by SGD with momentum
+#' Fit trend and ARMA Parameters by SGD with Momentum
 #'
-#' @description Optimizes ARMA conditional least squares parameters using
-#' mini-batch SGD with momentum, gradient clipping, and early stopping.
-#'
-#' @param x Numeric input series.
+#' @param y Numeric response vector.
+#' @param t_vec Numeric trend covariate vector.
 #' @param p Integer AR order.
 #' @param q Integer MA order.
 #' @param init Numeric initial parameter vector.
 #' @param lr Numeric learning rate.
-#' @param momentum Numeric momentum factor.
-#' @param batch_size Integer mini-batch size.
-#' @param warmup Integer warmup length used for recursive state.
-#' @param max_epochs Integer maximum training epochs.
-#' @param clip Numeric gradient-norm clipping threshold.
-#' @param shuffle_blocks Logical; whether to shuffle batches each epoch.
-#' @param patience Integer early-stopping patience.
-#' @param min_delta Numeric minimum improvement threshold.
-#' @param verbose Logical; whether to print epoch loss.
+#' @param momentum Numeric momentum coefficient.
+#' @param batch_size Integer mini-batch length.
+#' @param warmup Integer warmup width for recursion.
+#' @param max_epochs Integer max training epochs.
 #'
-#' @return List containing fitted parameters, loss summary, and timing.
-#'
-#' @keywords internal
-fit_cls_sgd_momentum <- function(x, p, q,
-                                 init = rep(0, p + q),
+#' @return List with fitted parameters.
+fit_cls_sgd_momentum <- function(y, t_vec, p, q,
+                                 init = c(0, 0, rep(1.6/(p + q), p + q)),
                                  lr = 1e-3,
                                  momentum = 0.9,
-                                 batch_size = 64L,
-                                 warmup = 40L,
-                                 max_epochs = 200L,
-                                 clip = 5,
-                                 shuffle_blocks = TRUE,
-                                 patience = 30L,
-                                 min_delta = 1e-8,
-                                 verbose = FALSE) {
-  n <- length(x)
-  m <- max(p, q)
-  
-  if (n <= m) {
-    stop("Series is too short for requested ARMA order.")
-  }
-  
-  # Initialize optimizer state.
-  par <- init
+                                 batch_size = 64,
+                                 warmup = 10,
+                                 max_epochs = 50) {
+  meta <- validate_arma_inputs(y, t_vec, p, q, par = init)
+  n <- meta$n
+  m <- meta$m
+  if (n <= m) stop("Series is too short for requested ARMA order.")
+
+  par <- as.numeric(init)
   vel <- numeric(length(par))
-  
-  best_par <- par
-  best_loss <- Inf
-  no_improve <- 0L
-  loss_hist <- numeric(max_epochs)
-  
-  start_time <- proc.time()[3]
-  
-  # Epoch loop over mini-batches.
+
   for (epoch in seq_len(max_epochs)) {
-    block_starts <- seq.int(m + 1L, n, by = batch_size)
-    block_ends <- pmin(block_starts + batch_size - 1L, n)
-    
-    ord <- seq_along(block_starts)
-    if (shuffle_blocks) ord <- sample(ord)
-    
-    for (z in ord) {
-      batch_start <- block_starts[z]
-      batch_end   <- block_ends[z]
-      
-      phi   <- if (p > 0L) par[1:p] else numeric(0)
-      theta <- if (q > 0L) par[(p + 1L):(p + q)] else numeric(0)
-      
+    block_starts <- seq(m + 1, n, by = batch_size)
+    block_ends <- pmin(block_starts + batch_size - 1, n)
+
+    for (z in seq_along(block_starts)) {
       out <- cls_grad_block_vec(
-        x = x,
-        phi = phi,
-        theta = theta,
-        batch_start = batch_start,
-        batch_end = batch_end,
-        warmup = warmup
+        y = y, t_vec = t_vec, par = par, p = p, q = q,
+        batch_start = block_starts[z], batch_end = block_ends[z], warmup = warmup
       )
-      
       grad <- out$grad
-      grad_norm <- sqrt(sum(grad^2))
-      if (grad_norm > clip) grad <- grad * (clip / grad_norm)
-      
-      # Momentum parameter update.
+
       vel <- momentum * vel - lr * grad
       par <- par + vel
     }
-    
-    full_loss <- cls_loss_arma(par, x, p, q)
-    loss_hist[epoch] <- full_loss
-    
-    if (full_loss < best_loss - min_delta) {
-      best_loss <- full_loss
-      best_par <- par
-      no_improve <- 0L
-    } else {
-      no_improve <- no_improve + 1L
-    }
-    
-    if (verbose) {
-      cat(sprintf("Epoch %3d | CLS loss = %.6f\n", epoch, full_loss))
-    }
-    
-    if (no_improve >= patience) {
-      loss_hist <- loss_hist[seq_len(epoch)]
-      break
-    }
   }
-  
-  elapsed <- proc.time()[3] - start_time
-  
+
+  parts <- split_joint_par(par, p, q)
+
   list(
-    par = best_par,
-    phi = if (p > 0L) best_par[1:p] else numeric(0),
-    theta = if (q > 0L) best_par[(p + 1L):(p + q)] else numeric(0),
-    loss = cls_loss_arma(best_par, x, p, q),
-    loss_hist = loss_hist[loss_hist != 0],
-    elapsed_sec = elapsed
+    par = par,
+    trend_coef = c(intercept = parts$intercept, t = parts$slope),
+    phi = parts$phi,
+    theta = parts$theta
   )
 }
 
-#' Reconstruct fitted ARMA component from residual recursion
-#'
-#' @description Rebuilds one-step fitted ARMA values from AR coefficients,
-#' MA coefficients, and a residual sequence.
-#'
-#' @param x Numeric ARMA-target series.
-#' @param phi Numeric AR coefficient vector.
-#' @param theta Numeric MA coefficient vector.
-#' @param resid Numeric residual vector.
-#'
-#' @return Numeric vector of fitted ARMA component values.
-#'
-#' @keywords internal
-arma_fitted_from_resid <- function(x, phi, theta, resid) {
-  n <- length(x)
-  p <- length(phi)
-  q <- length(theta)
-  m <- max(p, q)
-  
-  # Keep pre-lag region as NA and fill valid fitted range recursively.
-  fitted <- rep(NA_real_, n)
-  if (n <= m) return(fitted)
-  
-  for (t in (m + 1L):n) {
-    ar_part <- if (p > 0L) sum(phi * x[(t - 1L):(t - p)]) else 0
-    ma_part <- if (q > 0L) sum(theta * resid[(t - 1L):(t - q)]) else 0
-    fitted[t] <- ar_part + ma_part
-  }
-  
-  fitted
-}
-
-
 #' Fit an ARMA Model to Data
 #'
-#' @description Fits an ARMA model of order `p_order` and `q_order`. If
-#' `data` is a data frame with a `t` column, `t` is included as a linear trend
-#' regressor and ARMA is fit to the detrended response using SGD with momentum.
+#' @description Fits an ARMA model of order `p_order` and `q_order` with a
+#' linear trend `intercept + t * slope` estimated jointly by SGD.
 #'
 #' @param data Data frame containing at least `y` (and optionally `t`), or a
 #'   numeric response vector.
@@ -454,131 +379,149 @@ arma_fitted_from_resid <- function(x, phi, theta, resid) {
 #'
 #' @export
 fit_ARMA <- function(data, p_order = 0, q_order = 0) {
-  y <- if (is.data.frame(data)) data$y else as.numeric(data)
+  y <- if (is.data.frame(data)) as.numeric(data$y) else as.numeric(data)
   n <- length(y)
-  
-  # Remove linear trend first, then fit ARMA on detrended response.
-  if (is.data.frame(data) && "t" %in% names(data)) {
-    t_vec <- data$t
-    trend_fit <- lm(y ~ t_vec)
-    trend_coef <- as.numeric(coef(trend_fit))   # intercept, slope
-    trend_hat <- as.numeric(fitted(trend_fit))
-    x_for_arma <- y - trend_hat
+
+  if (is.data.frame(data)) {
+    if (!"y" %in% names(data)) stop("For data-frame input, `data` must include a `y` column.")
+    t_vec <- if ("t" %in% names(data)) as.numeric(data$t) else seq_len(n)
   } else {
-    t_vec <- NULL
-    trend_coef <- NULL
-    trend_hat <- rep(0, n)
-    x_for_arma <- y
+    t_vec <- seq_len(n)
   }
-  
-  # Optimize ARMA parameters via CLS-SGD.
+
+  meta <- validate_arma_inputs(y, t_vec, p_order, q_order)
+  p_order <- meta$p
+  q_order <- meta$q
+
+  t_mean <- mean(t_vec)
+  t_sd <- sd(t_vec)
+  if (!is.finite(t_sd) || t_sd <= 0) t_sd <- 1
+  t_opt <- (t_vec - t_mean) / t_sd
+
+  init_trend <- tryCatch(
+    as.numeric(coef(lm(y ~ t_opt))),
+    error = function(e) c(mean(y), 0)
+  )
+
   opt <- fit_cls_sgd_momentum(
-    x = x_for_arma,
+    y = y,
+    t_vec = t_opt,
     p = p_order,
     q = q_order,
-    init = rep(0.01, p_order + q_order),
-    lr = 1e-3,
-    momentum = 0.9,
-    batch_size = 32L,
-    warmup = 20L,
-    max_epochs = 200L,
-    clip = 5,
-    shuffle_blocks = TRUE,
-    patience = 30L,
-    verbose = FALSE
+    init = c(init_trend[1], init_trend[2], rep(0.01, p_order + q_order))
   )
-  
-  # Rebuild fitted values and residuals on original y scale.
-  resid_arma <- arma_residuals(x_for_arma, opt$phi, opt$theta)
-  fitted_arma <- arma_fitted_from_resid(x_for_arma, opt$phi, opt$theta, resid_arma)
-  fitted_full <- trend_hat + fitted_arma
-  resid_full <- y - fitted_full
-  
+
+  trend_coef_opt <- c(
+    intercept = unname(opt$trend_coef["intercept"]),
+    t = unname(opt$trend_coef["t"])
+  )
+  trend_coef <- c(
+    intercept = unname(trend_coef_opt["intercept"] - trend_coef_opt["t"] * t_mean / t_sd),
+    t = unname(trend_coef_opt["t"] / t_sd)
+  )
+
+  par_original <- c(
+    trend_coef["intercept"],
+    trend_coef["t"],
+    if (p_order > 0) opt$phi else numeric(0),
+    if (q_order > 0) opt$theta else numeric(0)
+  )
+
+  state <- build_arma_state(y = y, t_vec = t_vec, par = par_original, p = p_order, q = q_order)
+  resid_full <- state$resid_full
+  fitted_full <- state$fitted_full
+
+  sigma2 <- mean(resid_full[is.finite(resid_full)]^2)
+  if (!is.finite(sigma2)) sigma2 <- 0
+
+  ar_names <- if (p_order > 0) paste0("ar", seq_len(p_order)) else character(0)
+  ma_names <- if (q_order > 0) paste0("ma", seq_len(q_order)) else character(0)
+
+  coef_public <- c(
+    setNames(opt$phi, ar_names),
+    setNames(opt$theta, ma_names),
+    c(intercept = unname(trend_coef["intercept"]), t = unname(trend_coef["t"]))
+  )
+
   fit <- list(
-    coefficients = c(
-      if (!is.null(trend_coef)) c(intercept = trend_coef[1], t = trend_coef[2]) else numeric(0),
-      stats::setNames(opt$phi, paste0("ar", seq_along(opt$phi))),
-      stats::setNames(opt$theta, paste0("ma", seq_along(opt$theta)))
-    ),
+    coef = coef_public,
+    sigma2 = sigma2,
+    arma = c(p_order, q_order),
     residuals = resid_full,
-    arma_residuals = resid_arma,
-    fitted.values = fitted_full,
-    trend_fitted = trend_hat,
-    trend_coef = trend_coef,
-    phi = opt$phi,
-    theta = opt$theta,
-    loss = opt$loss,
-    loss_hist = opt$loss_hist,
-    elapsed_sec = opt$elapsed_sec,
-    p_order = p_order,
-    q_order = q_order,
-    fit_label = paste0("ARMA(", p_order, ", ", q_order, ") fit"),
-    x = y,
-    x_detrended = x_for_arma
+    fitted.values = fitted_full
   )
-  
-  class(fit) <- "ARMA_SGD_fit"
+
+  class(fit) <- "ARMA_CLS_fit"
   fit
 }
 
-#' Extract residuals from an ARMA_SGD_fit object
-#'
-#' @description Returns full-series residuals stored in a fitted
-#' `ARMA_SGD_fit` object.
-#'
-#' @param object An object returned by `fit_ARMA()`.
-#' @param ... Additional arguments (unused).
-#'
-#' @return Numeric residual vector.
-#' @export
-residuals.ARMA_SGD_fit <- function(object, ...) {
+coef.ARMA_CLS_fit <- function(object, ...) {
+  object$coef
+}
+
+residuals.ARMA_CLS_fit <- function(object, ...) {
   object$residuals
 }
 
-#' Estimate ARMA error series from fitted model output
-#'
-#' @description Extracts and length-aligns model residuals so they can be used
-#' as ARMA error estimates for plotting or diagnostics.
-#'
-#' @param data Data frame or numeric series used as target alignment reference.
-#' @param fit Fitted model object supplying residuals.
-#'
-#' @return Numeric error vector aligned to `data` length.
-estimate_ARMA_errors <- function(data, fit) {
-  if (is.null(fit)) {
-    stop("`fit` must be provided to estimate ARMA errors.")
-  }
-
-  if (is.data.frame(data)) {
-    if (!"y" %in% names(data)) {
-      stop("For data-frame input, `data` must include a `y` column.")
-    }
-    target_len <- nrow(data)
-  } else {
-    target_len <- length(as.numeric(data))
-  }
-
-  # Extract residuals and align to target length.
+extract_fit_residuals <- function(fit) {
+  if (is.null(fit)) stop("`fit` must be provided for residual overlays.")
   arma_errors <- as.numeric(residuals(fit))
-  if (length(arma_errors) == 0) {
-    stop("Could not extract residuals from `fit`.")
+  if (length(arma_errors) == 0) stop("Could not extract residuals from `fit`.")
+  arma_errors
+}
+
+extract_fit_fitted_values <- function(fit) {
+  if (is.null(fit)) stop("`fit` must be provided for fitted value overlays.")
+  fitted_vals <- as.numeric(fit$fitted.values)
+  if (length(fitted_vals) == 0) stop("Could not extract `fitted.values` from `fit`.")
+  fitted_vals
+}
+
+resolve_series_input <- function(x, series, fit = NULL) {
+  has_observed_errors <- FALSE
+
+  if (is.data.frame(x)) {
+    t <- if ("t" %in% names(x)) x$t else seq_len(nrow(x))
+
+    if (series == "e") {
+      if ("e" %in% names(x) && any(is.finite(x$e))) {
+        y_obs <- x$e
+        has_observed_errors <- TRUE
+      } else if (!is.null(fit)) {
+        y_obs <- align_fitted_length(extract_fit_residuals(fit), length(t))
+      } else {
+        stop("`series = 'e'` requires an `e` column or a fitted model `fit`.")
+      }
+    } else {
+      if (!"y" %in% names(x)) stop("`series = 'y'` requires a `y` column for data-frame input.")
+      y_obs <- x$y
+    }
+  } else {
+    y_obs <- as.numeric(x)
+    t <- seq_along(y_obs)
+
+    if (series == "e") {
+      if (is.null(fit)) stop("For numeric input with `series = 'e'`, provide a fitted model `fit`.")
+      y_obs <- align_fitted_length(extract_fit_residuals(fit), length(t))
+    }
   }
 
-  if (length(arma_errors) == target_len) {
-    return(arma_errors)
-  }
+  list(t = t, y_obs = y_obs, has_observed_errors = has_observed_errors)
+}
 
-  if (length(arma_errors) > target_len) {
-    return(tail(arma_errors, target_len))
-  }
-
-  c(rep(NA_real_, target_len - length(arma_errors)), arma_errors)
+align_fitted_length <- function(fitted_vals, target_len) {
+  fitted_vals <- as.numeric(fitted_vals)
+  if (length(fitted_vals) > target_len) return(tail(fitted_vals, target_len))
+  if (length(fitted_vals) < target_len) return(c(rep(NA_real_, target_len - length(fitted_vals)), fitted_vals))
+  fitted_vals
 }
 
 #' Plot ARMA series over time
 #'
 #' @description Plots ARMA data or errors from either a generated ARMA data
-#' frame or a numeric vector and overlays fitted values if provided.
+#' frame or a numeric vector and overlays fit outputs if provided. For
+#' `series = "y"` overlays come from `fit$fitted.values`; for `series = "e"`
+#' overlays come from `residuals(fit)`.
 #'
 #' @param x Either a data frame returned by `generate_ARMA_dataset()` /
 #'   `generate_ARMA_errors()`, or a numeric vector.
@@ -600,35 +543,9 @@ estimate_ARMA_errors <- function(data, fit) {
 #' @export
 plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = NULL) {
   series <- match.arg(series)
-  has_observed_errors <- FALSE
-
-  if (is.data.frame(x)) {
-    t <- if ("t" %in% names(x)) x$t else seq_len(nrow(x))
-    if (series == "e") {
-      if ("e" %in% names(x) && any(is.finite(x$e))) {
-        y_obs <- x$e
-        has_observed_errors <- TRUE
-      } else if (!is.null(fit)) {
-        y_obs <- estimate_ARMA_errors(x, fit)
-      } else {
-        stop("`series = 'e'` requires an `e` column or a fitted model `fit`.")
-      }
-    } else {
-      if (!"y" %in% names(x)) {
-        stop("`series = 'y'` requires a `y` column for data-frame input.")
-      }
-      y_obs <- x$y
-    }
-  } else {
-    y_obs <- as.numeric(x)
-    t <- seq_along(y_obs)
-    if (series == "e") {
-      if (is.null(fit)) {
-        stop("For numeric input with `series = 'e'`, provide a fitted model `fit`.")
-      }
-      y_obs <- estimate_ARMA_errors(y_obs, fit)
-    }
-  }
+  resolved <- resolve_series_input(x, series, fit)
+  t <- resolved$t
+  y_obs <- resolved$y_obs
 
   y_axis <- if (series == "e") "ARMA Errors" else "y"
   plot_type <- if (series == "e") "l" else "p"
@@ -637,22 +554,13 @@ plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = 
 
   if (!is.null(fit) && is.null(fitted_vals)) {
     if (series == "e") {
-      if (has_observed_errors) {
-        fitted_vals <- estimate_ARMA_errors(x, fit)
-      }
+      if (resolved$has_observed_errors) fitted_vals <- extract_fit_residuals(fit)
     } else {
-      fitted_vals <- as.numeric(y_obs - estimate_ARMA_errors(y_obs, fit))
+      fitted_vals <- extract_fit_fitted_values(fit)
     }
   }
 
-  if (!is.null(fitted_vals)) {
-    fitted_vals <- as.numeric(fitted_vals)
-    if (length(fitted_vals) > length(t)) {
-      fitted_vals <- tail(fitted_vals, length(t))
-    } else if (length(fitted_vals) < length(t)) {
-      fitted_vals <- c(rep(NA_real_, length(t) - length(fitted_vals)), fitted_vals)
-    }
-  }
+  if (!is.null(fitted_vals)) fitted_vals <- align_fitted_length(fitted_vals, length(t))
 
   dgp_label <- if (is.data.frame(x) && all(c("p_order", "q_order") %in% names(x))) {
     paste0("ARMA(", x$p_order[1], ", ", x$q_order[1], ") dgp")
@@ -663,25 +571,22 @@ plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = 
   }
 
   fit_line_label <- if (!is.null(fitted_vals) || !is.null(fit)) {
-    if (!is.null(fit) && !is.null(fit$fit_label)) fit$fit_label else "fit"
+    if (!is.null(fit) && !is.null(fit$arma) && length(fit$arma) >= 2) {
+      paste0("ARMA(", fit$arma[1], ", ", fit$arma[2], ") fit")
+    } else {
+      "fit"
+    }
   } else {
     NULL
   }
 
-  plot_title <- if (!is.null(fit_line_label)) {
-    paste(dgp_label, "|", fit_line_label)
-  } else {
-    dgp_label
-  }
+  plot_title <- if (!is.null(fit_line_label)) paste(dgp_label, "|", fit_line_label) else dgp_label
 
   plot(t, y_obs, type = plot_type, pch = plot_pch, cex = 0.7, xlab = "Time", ylab = y_axis, main = plot_title)
+
   if (!is.null(fitted_vals)) {
     lines(t, fitted_vals, col = fit_col, lwd = 2)
-    legend_labels <- if (series == "e") {
-      c(expression(e), expression(hat(e)))
-    } else {
-      c(expression(y), expression(hat(y)))
-    }
+    legend_labels <- if (series == "e") c(expression(e), expression(hat(e))) else c(expression(y), expression(hat(y)))
     legend("topleft", legend = legend_labels, col = c("black", fit_col), pch = c(16, NA), lty = c(NA, 1), bty = "n")
   }
 }

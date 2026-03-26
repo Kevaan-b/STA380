@@ -463,22 +463,18 @@ residuals.ARMA_CLS_fit <- function(object, ...) {
   object$residuals
 }
 
-estimate_ARMA_errors <- function(data, fit) {
-  if (is.null(fit)) stop("`fit` must be provided to estimate ARMA errors.")
-
-  target_len <- if (is.data.frame(data)) {
-    if (!"y" %in% names(data)) stop("For data-frame input, `data` must include a `y` column.")
-    nrow(data)
-  } else {
-    length(as.numeric(data))
-  }
-
+extract_fit_residuals <- function(fit) {
+  if (is.null(fit)) stop("`fit` must be provided for residual overlays.")
   arma_errors <- as.numeric(residuals(fit))
   if (length(arma_errors) == 0) stop("Could not extract residuals from `fit`.")
-
-  if (length(arma_errors) > target_len) return(tail(arma_errors, target_len))
-  if (length(arma_errors) < target_len) return(c(rep(NA_real_, target_len - length(arma_errors)), arma_errors))
   arma_errors
+}
+
+extract_fit_fitted_values <- function(fit) {
+  if (is.null(fit)) stop("`fit` must be provided for fitted value overlays.")
+  fitted_vals <- as.numeric(fit$fitted.values)
+  if (length(fitted_vals) == 0) stop("Could not extract `fitted.values` from `fit`.")
+  fitted_vals
 }
 
 resolve_series_input <- function(x, series, fit = NULL) {
@@ -492,7 +488,7 @@ resolve_series_input <- function(x, series, fit = NULL) {
         y_obs <- x$e
         has_observed_errors <- TRUE
       } else if (!is.null(fit)) {
-        y_obs <- estimate_ARMA_errors(x, fit)
+        y_obs <- align_fitted_length(extract_fit_residuals(fit), length(t))
       } else {
         stop("`series = 'e'` requires an `e` column or a fitted model `fit`.")
       }
@@ -506,7 +502,7 @@ resolve_series_input <- function(x, series, fit = NULL) {
 
     if (series == "e") {
       if (is.null(fit)) stop("For numeric input with `series = 'e'`, provide a fitted model `fit`.")
-      y_obs <- estimate_ARMA_errors(y_obs, fit)
+      y_obs <- align_fitted_length(extract_fit_residuals(fit), length(t))
     }
   }
 
@@ -523,7 +519,9 @@ align_fitted_length <- function(fitted_vals, target_len) {
 #' Plot ARMA series over time
 #'
 #' @description Plots ARMA data or errors from either a generated ARMA data
-#' frame or a numeric vector and overlays fitted values if provided.
+#' frame or a numeric vector and overlays fit outputs if provided. For
+#' `series = "y"` overlays come from `fit$fitted.values`; for `series = "e"`
+#' overlays come from `residuals(fit)`.
 #'
 #' @param x Either a data frame returned by `generate_ARMA_dataset()` /
 #'   `generate_ARMA_errors()`, or a numeric vector.
@@ -556,9 +554,9 @@ plot_ARMA_series <- function(x, series = c("y", "e"), fitted_vals = NULL, fit = 
 
   if (!is.null(fit) && is.null(fitted_vals)) {
     if (series == "e") {
-      if (resolved$has_observed_errors) fitted_vals <- estimate_ARMA_errors(x, fit)
+      if (resolved$has_observed_errors) fitted_vals <- extract_fit_residuals(fit)
     } else {
-      fitted_vals <- as.numeric(y_obs - estimate_ARMA_errors(y_obs, fit))
+      fitted_vals <- extract_fit_fitted_values(fit)
     }
   }
 
