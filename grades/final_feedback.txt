@@ -1,0 +1,9 @@
+This is actually very good! Well done. I'm glad you were able to make good use of the extension and come out with a beautiful finished product.
+
+Here's one main concern I have. I believe Al uses "The Analysis of Time Series: An Introduction with R", which doesn't use the SGD method for computing the \beta coefficients. The method would either be using Yule-Walker. Presumably if you're doing this project, it is because you wanted a deep understanding of time series data. I'm not going to deduct for this case, but ideally you should usually stick to what you have formally learnt as the purpose of the project is supposed to deepen your understanding of some topic.
+
+(From what I remember regarding STA457 with Al, he doesn't really give any projects. So, I was thinking the other day about how it's ironic that you have to take a different course to get more experience and understand time series... LOL. Please do mistake me if I'm wrong and Al has recently implemented projects for that course though.)
+
+Group grade: 6.4/6.4
+
+Individual grades are private and will be released later when posted on Quercus. Bonus marks, if applicable, are reflected on Quercus instead of feedback here.
